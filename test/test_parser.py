@@ -545,3 +545,25 @@ def test_enum_value_initializers():
     assert not _syntax_errors(warns), _syntax_errors(warns)
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_syntax_error_column_is_token_start():
+    """The reported column is where the offending token starts, i.e. the
+    column the context caret points at."""
+    for src, tok in (
+            ('PROGRAM p VAR x : INT; END_VAR x := 1 abcdef@; END_PROGRAM', ';'),
+            ('PROGRAM p VAR x : INT; END_VAR x := 1; @END_VAR END_PROGRAM', 'END_VAR'),
+            ('PROGRAM p VAR x : INT; END_VAR x := 1; END_PROGRAM @END_PROGRAM', 'END_PROGRAM'),
+            ("PROGRAM p VAR s : STRING := 'a@$Qb'; END_VAR END_PROGRAM", '$')):
+        col = src.index('@') + 1
+        src = src.replace('@', '')
+        warns, rc = check_program(src)
+        e = _syntax_errors(warns)
+        assert rc == 1
+        assert len(e) == 1, (src, warns)
+        assert src[col - 1:].startswith(tok)
+        assert e[0].column == col, (src, e[0].column, col)
+        caret = [ln for ln in e[0].context.splitlines() if '^' in ln][0]
+        assert caret.index('^') - caret.index('|') - 1 == col, e[0].context
+        with DumpManager('stdin.dump.json'):
+            pass
