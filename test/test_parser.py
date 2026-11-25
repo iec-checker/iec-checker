@@ -457,3 +457,91 @@ def test_keyword_prefixed_identifiers():
     assert rc == 0
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def _find_case_stmts(node):
+    if isinstance(node, list):
+        if node and node[0] == 'Case':
+            yield node
+        for c in node:
+            yield from _find_case_stmts(c)
+    elif isinstance(node, dict):
+        for c in node.values():
+            yield from _find_case_stmts(c)
+
+
+def _label(e):
+    c = e[2][2]
+    return c[2] if c[0] == 'EnumValue' else c
+
+
+def test_case_enum_labels():
+    """CASE labels may be enumerated values (IEC 61131-3, B.3.2.3)."""
+    warns, rc = check_program(
+        """
+        TYPE E : (A, B, C, D); END_TYPE
+        PROGRAM p
+        VAR CONSTANT K : INT := 7; END_VAR
+        VAR x : E; y : INT; END_VAR
+        CASE x OF
+          A: y := 1; y := 2;
+          B, C: f(); y := 3;
+          E#D: y := 4;
+        ELSE
+          y := 5;
+        END_CASE;
+        CASE y OF
+          1, 2: y := 0;
+          K: y := 1;
+          3..5: y := 2;
+        END_CASE;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    with open('stdin.dump.json') as fp:
+        cases = list(_find_case_stmts(json.load(fp)))
+    os.remove('stdin.dump.json')
+    assert len(cases) == 2
+    sels = cases[0][3]
+    assert [[_label(l) for l in s['case']] for s in sels] == \
+        [['A'], ['B', 'C'], ['D']]
+    assert [len(s['body']) for s in sels] == [2, 2, 1]
+    assert len(cases[0][4]) == 1
+    sels = cases[1][3]
+    assert [len(s['case']) for s in sels] == [2, 1, 1]
+    assert _label(sels[1]['case'][0]) == 'K'
+    assert [len(s['body']) for s in sels] == [1, 1, 1]
+
+
+def test_case_label_errors():
+    for body in ('A y := 1;', 'y := 1; A: y := 2;'):
+        warns, rc = check_program(
+            f"""
+            TYPE E : (A, B); END_TYPE
+            PROGRAM p VAR x : E; y : INT; END_VAR
+            CASE x OF {body} END_CASE;
+            END_PROGRAM
+            """.replace('\n', ''))
+        e = _syntax_errors(warns)
+        assert rc == 1
+        assert len(e) == 1 and e[0].id == 'ParserError', (body, warns)
+        with DumpManager('stdin.dump.json'):
+            pass
+
+
+def test_enum_value_initializers():
+    """Variables, struct elements and array elements of an enumerated type
+    may be initialized with an enumerated value (IEC 61131-3, B.1.3.3)."""
+    warns, rc = check_program(
+        """
+        TYPE E : (A, B, C); END_TYPE
+        TYPE S : STRUCT e : E := B; END_STRUCT; END_TYPE
+        FUNCTION_BLOCK fb
+        VAR_INPUT i : E := C; END_VAR
+        VAR x : E := B; z : E := E#C; s : S; END_VAR
+        x := z;
+        END_FUNCTION_BLOCK
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    with DumpManager('stdin.dump.json'):
+        pass

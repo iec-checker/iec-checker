@@ -1786,6 +1786,19 @@ let expression :=
 *)
 let constant_expr :=
   | ~ = constant; <>
+  | ~ = enum_value_const; <>
+
+let enum_value_const :=
+  | id = T_IDENTIFIER;
+  {
+    let (name, ti) = id in
+    Syntax.ExprConstant(ti, Syntax.CEnumValue(ti, name))
+  }
+  | enum_type_name; T_SHARP; id = T_IDENTIFIER;
+  {
+    let (name, ti) = id in
+    Syntax.ExprConstant(ti, Syntax.CEnumValue(ti, name))
+  }
 
 let xor_expr :=
   | ~ = and_expr; <>
@@ -2066,19 +2079,30 @@ let if_stmt_elsif_list :=
   }
 
 let case_stmt :=
-  | ti = T_CASE; e = expression; T_OF; css = list(case_selection); T_ELSE; sl = stmt_list; T_END_CASE;
+  | ti = T_CASE; e = expression; T_OF; css = case_selections; T_ELSE; sl = stmt_list; T_END_CASE;
   {
     let eti = Syntax.expr_get_ti e in
     Syntax.StmCase(ti, Syntax.StmExpr(eti, e), css, sl)
   }
-  | ti = T_CASE; e = expression; T_OF; css = list(case_selection); T_END_CASE;
+  | ti = T_CASE; e = expression; T_OF; css = case_selections; T_END_CASE;
   {
     let eti = Syntax.expr_get_ti e in
     Syntax.StmCase(ti, Syntax.StmExpr(eti, e), css, [])
   }
 
-let case_selection :=
-  | case = case_list; T_COLON; body = stmt_list; { Syntax.{ case; body } }
+(* Right-recursive and flat: after a statement, an identifier may start either
+   the next statement or the next enum label, and only the token after it decides. *)
+let case_selections :=
+  | { [] }
+  | case = case_list; T_COLON; s = stmt; option(T_SEMICOLON); t = case_selection_tail;
+  { let (body, css) = t in Syntax.{ case; body = s :: body } :: css }
+
+let case_selection_tail :=
+  | { ([], []) }
+  | s = stmt; option(T_SEMICOLON); t = case_selection_tail;
+  { let (body, css) = t in (s :: body, css) }
+  | case = case_list; T_COLON; s = stmt; option(T_SEMICOLON); t = case_selection_tail;
+  { let (body, css) = t in ([], Syntax.{ case; body = s :: body } :: css) }
 
 let case_list :=
   | ~ = separated_list(T_COMMA, case_list_elem); <>

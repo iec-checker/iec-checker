@@ -43,6 +43,7 @@
 - Add `PLCOpen-N1` (#68, @cangkui)
 - Lexer: accept spaces, non-ASCII characters and the `$$ $L $N $P $R $T` escapes in string literals
 - Lexer: make control-flow keywords (`IF`, `THEN`, `CASE`, `FOR`, `RETURN`, ...) case-insensitive like all other keywords
+- Parser: accept enumerated values (`A`, `E#A`) and named constants as `CASE` labels, and enumerated values as variable, struct and array element initializers
 
 ## 0.4.0 (2022-02-26)
 
