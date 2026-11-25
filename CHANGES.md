@@ -54,6 +54,7 @@
 - Lexer: accept a lowercase exponent in real literals (`1.5e3`)
 - Lexer: lex `TRUE`/`FALSE` and the `BOOL#` prefix case-insensitively; mixed-case spellings such as `tRuE` were silently parsed as variables
 - Lexer: stop reserving `EQU`, which is not an IEC 61131-3 keyword, so it can be used as an identifier
+- Lexer: skip a UTF-8 byte order mark; report unexpected non-ASCII characters whole, and escape invalid UTF-8 bytes (e.g. Latin-1 sources) in diagnostics so `-o json` output is always valid UTF-8
 
 ## 0.4.0 (2022-02-26)
 

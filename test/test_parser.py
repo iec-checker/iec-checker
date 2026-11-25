@@ -3,10 +3,11 @@ import sys
 import os
 import json
 import re
+import subprocess
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../src"))
-from python.core import run_checker, check_program, filter_warns  # noqa
+from python.core import run_checker, check_program, filter_warns, binary_default  # noqa
 from python.dump import DumpManager  # noqa
 
 
@@ -791,3 +792,43 @@ def test_equ_is_not_a_keyword():
     assert not _syntax_errors(warns), _syntax_errors(warns)
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def _run_raw(path, *args):
+    """Runs the checker and decodes its JSON output strictly as UTF-8."""
+    p = subprocess.run([binary_default, '-o', 'json', '-q', *args, str(path)],
+                       capture_output=True)
+    return json.loads(p.stdout.decode('utf-8')), p.returncode
+
+
+def test_diagnostics_are_valid_utf8(tmp_path):
+    """Non-ASCII input never produces invalid UTF-8 in the output."""
+    for src, msg in (
+            ('x := 1; ы'.encode(), 'Unexpected char: ы'),
+            (b'x := 1; \xe4', 'Unexpected char: \\xE4')):
+        f = tmp_path / 'p.st'
+        f.write_bytes(b'PROGRAM p VAR x : INT; END_VAR ' + src + b' END_PROGRAM\n')
+        warns, rc = _run_raw(f)
+        e = [w for w in warns if w['id'] == 'LexingError']
+        assert rc == 1 and len(e) == 1 and e[0]['msg'] == msg, warns
+    f.write_bytes(b"PROGRAM p VAR s : STRING := '\xe4'; x : INT; END_VAR x := 1 2; END_PROGRAM\n")
+    warns, rc = _run_raw(f)
+    e = [w for w in warns if w['id'] == 'ParserError']
+    assert rc == 1 and len(e) == 1 and "'\\xE4'" in e[0]['context'], warns
+
+
+def test_utf8_bom(tmp_path):
+    """A UTF-8 byte order mark is not part of the program text."""
+    bom = b'\xef\xbb\xbf'
+    src = 'PROGRAM p VAR x : INT; END_VAR x := 1 2; END_PROGRAM\n'
+    f = tmp_path / 'p.st'
+    f.write_bytes(bom + src.encode())
+    warns, rc = _run_raw(f)
+    e = [w for w in warns if w['id'] in ('ParserError', 'LexingError')]
+    assert rc == 1 and len(e) == 1, warns
+    assert (e[0]['linenr'], e[0]['column']) == (1, src.index('2') + 1)
+    a, b = tmp_path / 'a.st', tmp_path / 'b.st'
+    a.write_bytes(bom + b'FUNCTION f : INT f := 1; END_FUNCTION\n')
+    b.write_bytes(bom + b'PROGRAM p VAR x : INT; END_VAR x := f(); END_PROGRAM\n')
+    warns, rc = _run_raw(b, '-m', str(a))
+    assert not [w for w in warns if w['id'] in ('ParserError', 'LexingError')], warns

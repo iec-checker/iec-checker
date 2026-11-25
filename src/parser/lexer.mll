@@ -226,6 +226,13 @@ rule initial tokinfo =
   parse
   (* {{{ Common *)
   | whitespace+          { initial tokinfo lexbuf }
+  | "\239\187\191"
+  {
+    let p = lexbuf.lex_start_p in
+    if p.pos_cnum = p.pos_bol then
+      lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_bol = lexbuf.lex_curr_p.pos_cnum };
+    initial tokinfo lexbuf
+  }
   | '\n'                 { incr_linenum lexbuf; initial tokinfo lexbuf }
   | ":="                 { T_ASSIGN }
   | "?="                 { T_ASSIGN_REF }
@@ -423,6 +430,7 @@ rule initial tokinfo =
   | "STRING#" '"'    { let ti = tokinfo lexbuf in dstring_literal (Buffer.create 19) ti lexbuf }
   | '"'              { let ti = tokinfo lexbuf in dstring_literal (Buffer.create 19) ti lexbuf }
   | eof              { T_EOF }
+  | ['\192'-'\255'] ['\128'-'\191']* as u { raise (LexingError ("Unexpected char: " ^ u)) }
   | _                { raise (LexingError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   (* }}} *)
 
