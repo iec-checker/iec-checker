@@ -50,6 +50,7 @@
 - Python wrapper: fix a deadlock in `run_checker` (used by `checker.py` and the tests) when the checker prints more than the OS pipe buffer
 - Lexer: accept lowercase `t#`, `d#`, `lt#` and `ld#` duration and date literal prefixes
 - Lexer: accept mixed-case `ms`, `us` and `ns` duration units (`T#5Ms`)
+- Lexer: accept underlines between duration units (`T#5d_14h_12m_18s_3.5ms`) and identifiers starting with an underline and a digit (`_1abc`)
 
 ## 0.4.0 (2022-02-26)
 

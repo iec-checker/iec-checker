@@ -697,3 +697,55 @@ def test_duration_units_case_insensitive():
     dumps = [_dump_of(p.replace('1d2h3m4s5ms6us7ns', u)) for u in (
         '1d2h3m4s5ms6us7ns', '1D2H3M4S5MS6US7NS', '1d2h3m4s5Ms6Us7Ns', '1d2h3m4s5mS6uS7nS')]
     assert all(d == dumps[0] for d in dumps)
+
+
+def _no_pos(node):
+    if isinstance(node, dict):
+        return {k: _no_pos(v) for k, v in node.items() if k not in ('linenr', 'col')}
+    if isinstance(node, list):
+        return [_no_pos(c) for c in node]
+    return node
+
+
+def test_duration_unit_underscores():
+    """Units of a duration may be separated by underlines (IEC 61131-3,
+    2.2.3.1 and table 7: `t#25h_15m`, `t#5d_14h_12m_18s_3.5ms`)."""
+    p = """
+        PROGRAM p
+        VAR t : TIME; l : LTIME; END_VAR
+        t := t#25h_15m; t := t#5d_14h_12m_18s_3.5ms; t := TIME#-1m_30s;
+        l := LT#1ms_5us_3ns;
+        END_PROGRAM
+        """.replace('\n', '')
+    plain = re.sub(r'(?<=[dhms])_(?=\d)', '', p)
+    assert 't#5d14h12m18s3.5ms' in plain and 'LT#1ms5us3ns' in plain
+    assert _no_pos(_dump_of(p)) == _no_pos(_dump_of(plain))
+    for bad in ('T#1d_', 'T#1d__2h', 'T#1.5d_2h', 'T#1d_ 2h'):
+        warns, rc = check_program(
+            f'PROGRAM p VAR t : TIME; END_VAR t := {bad}; END_PROGRAM')
+        assert rc == 1 and len(_syntax_errors(warns)) == 1, (bad, warns)
+        with DumpManager('stdin.dump.json'):
+            pass
+
+
+def test_identifier_underscore_digit():
+    """An identifier may start with an underline followed by a digit
+    (IEC 61131-3, B.1.1)."""
+    warns, rc = check_program(
+        """
+        PROGRAM p
+        VAR _1abc, _9, _x1 : INT; END_VAR
+        _1abc := _9 + _x1;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    assert rc == 0
+    with DumpManager('stdin.dump.json'):
+        pass
+    for bad in ('__x', '_'):
+        warns, rc = check_program(
+            f'PROGRAM p VAR {bad} : INT; END_VAR {bad} := 1; END_PROGRAM')
+        e = _syntax_errors(warns)
+        assert rc == 1 and len(e) == 1 and e[0].id == 'LexingError', (bad, warns)
+        with DumpManager('stdin.dump.json'):
+            pass

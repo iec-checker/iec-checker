@@ -218,7 +218,7 @@ let fix_point_ms = (integer | (integer '.' integer)) (['m' 'M'] ['s' 'S'])
 let fix_point_us = (integer | (integer '.' integer)) (['u' 'U'] ['s' 'S'])
 let fix_point_ns = (integer | (integer '.' integer)) (['n' 'N'] ['s' 'S'])
 
-let label = '_'? (letter | letter ['A'-'Z' 'a'-'z' '0'-'9' '_' '.']*)
+let label = ('_' (letter | digit) | letter) ['A'-'Z' 'a'-'z' '0'-'9' '_' '.']*
 
 rule initial tokinfo =
   parse
@@ -347,6 +347,20 @@ rule initial tokinfo =
   (* }}} *)
 
   (* {{{ Time intervals *)
+  (* Units of an integer value may be followed by '_' and the next unit. The
+     digit after '_' is matched only to check it is there and pushed back. *)
+  | (integer as i) ['d' 'D'] '_' digit
+  { yyback 1 lexbuf; T_TIME_INTERVAL_D(float_of_string i, tokinfo lexbuf) }
+  | (integer as i) ['h' 'H'] '_' digit
+  { yyback 1 lexbuf; T_TIME_INTERVAL_H(float_of_string i, tokinfo lexbuf) }
+  | (integer as i) ['m' 'M'] '_' digit
+  { yyback 1 lexbuf; T_TIME_INTERVAL_M(float_of_string i, tokinfo lexbuf) }
+  | (integer as i) ['s' 'S'] '_' digit
+  { yyback 1 lexbuf; T_TIME_INTERVAL_S(float_of_string i, tokinfo lexbuf) }
+  | (integer as i) ['m' 'M'] ['s' 'S'] '_' digit
+  { yyback 1 lexbuf; T_TIME_INTERVAL_MS(float_of_string i, tokinfo lexbuf) }
+  | (integer as i) ['u' 'U'] ['s' 'S'] '_' digit
+  { yyback 1 lexbuf; T_TIME_INTERVAL_US(float_of_string i, tokinfo lexbuf) }
   | fix_point_d as v
   {
       let vf = float_of_string (String.slice v 0 ((String.length v) - 1)) in
