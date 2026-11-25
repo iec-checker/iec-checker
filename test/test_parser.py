@@ -660,3 +660,27 @@ def test_program_configuration_connections():
     assert not _syntax_errors(warns), _syntax_errors(warns)
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def _dump_of(src):
+    warns, rc = check_program(src)
+    assert not _syntax_errors(warns), (src, _syntax_errors(warns))
+    with open('stdin.dump.json') as fp:
+        d = json.load(fp)
+    os.remove('stdin.dump.json')
+    return d
+
+
+def test_time_and_date_prefixes_case_insensitive():
+    """`t#`, `d#` are the same prefixes as `T#`, `D#` (IEC 61131-3,
+    tables 7 and 8: `t#14.7d`, `t#25h15m`, `d#1984-06-25`)."""
+    p = """
+        PROGRAM p
+        VAR t : TIME; lt : LTIME; d : DATE; ld : LDATE; END_VAR
+        t := T#14.7d; t := T#25h15m; t := T#-14ms; lt := LT#1s;
+        d := D#1984-06-25; ld := LD#1984-06-25;
+        END_PROGRAM
+        """.replace('\n', '')
+    low = re.sub(r'\b(LT|LD|T|D)#', lambda m: m.group(1).lower() + '#', p)
+    assert 't#14.7d' in low and 'lt#1s' in low and 'ld#1984' in low
+    assert _dump_of(p) == _dump_of(low)

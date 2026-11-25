@@ -48,6 +48,7 @@
 - Parser: accept multi-dimensional (`m[i, j]`) and chained (`m[i][j]`) subscripts in expressions, and chained subscripts on assignment targets
 - Lexer: skip `{...}` pragmas anywhere whitespace is allowed; parse array init repetition as `n(v)` (n copies of `v`) and program configuration connections as `PROGRAM inst : prg (...)`
 - Python wrapper: fix a deadlock in `run_checker` (used by `checker.py` and the tests) when the checker prints more than the OS pipe buffer
+- Lexer: accept lowercase `t#`, `d#`, `lt#` and `ld#` duration and date literal prefixes
 
 ## 0.4.0 (2022-02-26)
 
