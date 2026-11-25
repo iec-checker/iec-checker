@@ -214,9 +214,9 @@ let fix_point_d = (integer | (integer '.' integer)) ('d' | 'D')
 let fix_point_h = (integer | (integer '.' integer)) ('h' | 'H')
 let fix_point_m = (integer | (integer '.' integer)) ('m' | 'M')
 let fix_point_s = (integer | (integer '.' integer)) ('s' | 'S')
-let fix_point_ms = (integer | (integer '.' integer)) ("ms" | "MS")
-let fix_point_us = (integer | (integer '.' integer)) ("us" | "US")
-let fix_point_ns = (integer | (integer '.' integer)) ("ns" | "NS")
+let fix_point_ms = (integer | (integer '.' integer)) (['m' 'M'] ['s' 'S'])
+let fix_point_us = (integer | (integer '.' integer)) (['u' 'U'] ['s' 'S'])
+let fix_point_ns = (integer | (integer '.' integer)) (['n' 'N'] ['s' 'S'])
 
 let label = '_'? (letter | letter ['A'-'Z' 'a'-'z' '0'-'9' '_' '.']*)
 

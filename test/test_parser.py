@@ -684,3 +684,16 @@ def test_time_and_date_prefixes_case_insensitive():
     low = re.sub(r'\b(LT|LD|T|D)#', lambda m: m.group(1).lower() + '#', p)
     assert 't#14.7d' in low and 'lt#1s' in low and 'ld#1984' in low
     assert _dump_of(p) == _dump_of(low)
+
+
+def test_duration_units_case_insensitive():
+    """Duration units may be upper- or lower-case (IEC 61131-3, 2.2.3.1)."""
+    p = """
+        PROGRAM p
+        VAR t : LTIME; END_VAR
+        t := LT#1d2h3m4s5ms6us7ns;
+        END_PROGRAM
+        """.replace('\n', '')
+    dumps = [_dump_of(p.replace('1d2h3m4s5ms6us7ns', u)) for u in (
+        '1d2h3m4s5ms6us7ns', '1D2H3M4S5MS6US7NS', '1d2h3m4s5Ms6Us7Ns', '1d2h3m4s5mS6uS7nS')]
+    assert all(d == dumps[0] for d in dumps)

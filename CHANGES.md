@@ -49,6 +49,7 @@
 - Lexer: skip `{...}` pragmas anywhere whitespace is allowed; parse array init repetition as `n(v)` (n copies of `v`) and program configuration connections as `PROGRAM inst : prg (...)`
 - Python wrapper: fix a deadlock in `run_checker` (used by `checker.py` and the tests) when the checker prints more than the OS pipe buffer
 - Lexer: accept lowercase `t#`, `d#`, `lt#` and `ld#` duration and date literal prefixes
+- Lexer: accept mixed-case `ms`, `us` and `ns` duration units (`T#5Ms`)
 
 ## 0.4.0 (2022-02-26)
 
