@@ -242,8 +242,7 @@ rule initial tokinfo =
   | "**"                 { T_POW }
   | "*"                  { T_MUL }
   | ".."                 { T_RANGE }
-  | "{"                  { T_LBRACE }
-  | "}"                  { T_RBRACE }
+  | "{"                  { pragma tokinfo 1 lexbuf }
   | "["                  { T_LBRACK }
   | "]"                  { T_RBRACK }
   | "("                  { T_LPAREN }
@@ -524,6 +523,15 @@ and singleline_comment tokinfo = parse
   | '\n'   { incr_linenum lexbuf; initial tokinfo lexbuf }
   | eof    { T_EOF }
   | _      { singleline_comment tokinfo lexbuf }
+  (* }}} *)
+
+  (* {{{ Pragmas *)
+and pragma tokinfo depth = parse
+  | '{'  { pragma tokinfo (depth + 1) lexbuf }
+  | '}'  { if depth = 1 then initial tokinfo lexbuf else pragma tokinfo (depth - 1) lexbuf }
+  | '\n' { incr_linenum lexbuf; pragma tokinfo depth lexbuf }
+  | eof  { raise (LexingError "Pragma is not terminated") }
+  | _    { pragma tokinfo depth lexbuf }
   (* }}} *)
 
 {

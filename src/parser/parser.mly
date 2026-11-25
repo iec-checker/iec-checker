@@ -100,8 +100,6 @@
 %token T_NEQ        "<>"
 %token T_NOT        "NOT"
 %token T_RANGE      ".."
-%token T_LBRACE     "{"
-%token T_RBRACE     "}"
 %token T_LPAREN     "("
 %token T_RPAREN     ")"
 %token T_LBRACK     "["
@@ -993,32 +991,15 @@ let array_init :=
 let array_elem_init :=
   | v = array_elem_init_value;
   { [v] }
-  | mul_c = unsigned_int; T_LBRACE; inval = option(array_elem_init_value); T_RBRACE;
+  | mul_c = unsigned_int; T_LPAREN; inval = option(array_elem_init_value); T_RPAREN;
   {
-    let mk_int_const (i: int) =
-      Syntax.CInteger((TI.create_dummy ()), None, i)
+    let v = match inval with
+      | Some v -> v
+      | None -> Syntax.CInteger((TI.create_dummy ()), None, 0)
     in
-    let (inval_list : 'a list) = match inval with
-      | Some v -> [v]
-      | None -> [mk_int_const 0]
-    in
-    let (mul : int) = match mul_c with
-      | Syntax.CInteger(_, _, v) -> v
-      | _ -> assert false
-    in
-    let build_list i n =
-      let get_next (pos : int) : Syntax.constant =
-        let inval_opt = (List.nth inval_list pos) in
-        match inval_opt with Some v -> v | None -> mk_int_const 0
-      in
-      let rec aux acc i =
-        if i <= n then
-          aux ((get_next (i+1))::acc) (i+1)
-        else (List.rev acc)
-      in
-    aux [] i
-    in
-    (build_list 0 mul)
+    match mul_c with
+    | Syntax.CInteger(_, _, n) -> List.init n ~f:(fun _ -> v)
+    | _ -> assert false
   }
 
 let array_elem_init_value :=
@@ -1393,8 +1374,6 @@ let function_ty :=
 let func_body :=
   | sl_opt = option(stmt_list);
   { stmt_list_of_option sl_opt }
-  (* Allow empty body of function with {} *)
-  | T_LBRACE; T_RBRACE; { [] }
 (* }}} *)
 
 (* {{{ Table 40 -- Function block definition / Table 41 -- Function block instantiation *)
@@ -1426,8 +1405,6 @@ let fb_decl :=
 let fb_body :=
   | sl_opt = option(stmt_list);
   { stmt_list_of_option sl_opt }
-  (* Allow an empty body of the function block with {} *)
-  | T_LBRACE; T_RBRACE; { [] }
 
 let method_decl :=
   | T_METHOD;
@@ -1702,12 +1679,12 @@ let prog_config :=
   { Syntax.ProgramConfig.set_type_name pc tn }
   | T_PROGRAM; pc = prog_name_qual; T_WITH; t = task_name; T_COLON; tn = prog_type_name;
   { Syntax.ProgramConfig.set_type_name (Syntax.ProgramConfig.set_task pc t) tn }
-  | T_PROGRAM; pc = prog_name_qual; T_WITH; t = task_name; T_COLON; tn = prog_type_name; T_LBRACE; cvs = separated_list(T_COMMA, prog_conf_elem); T_RBRACE;
+  | T_PROGRAM; pc = prog_name_qual; T_WITH; t = task_name; T_COLON; tn = prog_type_name; T_LPAREN; cvs = separated_list(T_COMMA, prog_conf_elem); T_RPAREN;
   {
     let pc = Syntax.ProgramConfig.set_conn_vars pc cvs in
     Syntax.ProgramConfig.set_type_name (Syntax.ProgramConfig.set_task pc t) tn
   }
-  | T_PROGRAM; pc = prog_name_qual; T_COLON; tn = prog_type_access; T_LBRACE; cvs = separated_list(T_COMMA, prog_conf_elem); T_RBRACE;
+  | T_PROGRAM; pc = prog_name_qual; T_COLON; tn = prog_type_access; T_LPAREN; cvs = separated_list(T_COMMA, prog_conf_elem); T_RPAREN;
   { Syntax.ProgramConfig.set_type_name (Syntax.ProgramConfig.set_conn_vars pc cvs) tn }
 
 (* Helper rule for prog_config *)

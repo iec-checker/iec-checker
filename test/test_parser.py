@@ -6,7 +6,7 @@ import re
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../src"))
-from python.core import run_checker, check_program  # noqa
+from python.core import run_checker, check_program, filter_warns  # noqa
 from python.dump import DumpManager  # noqa
 
 
@@ -584,5 +584,77 @@ def test_subscript_lists():
         """.replace('\n', ''))
     assert not _syntax_errors(warns), _syntax_errors(warns)
     assert rc == 0
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
+def test_pragmas_keep_line_numbers(tmp_path):
+    f = tmp_path / 'p.st'
+    f.write_text('PROGRAM p\n{a\nb\n}\nVAR x : INT; END_VAR\nx := 1 2;\nEND_PROGRAM\n')
+    warns, rc = run_checker([str(f)])
+    e = _syntax_errors(warns)
+    assert rc == 1
+    assert len(e) == 1 and e[0].id == 'ParserError', warns
+    assert (e[0].linenr, e[0].column) == (6, 8)
+
+
+def test_pragma_errors():
+    for src, msg in (
+            ('PROGRAM p VAR x : INT; END_VAR x := 1; {never closed END_PROGRAM',
+             'Pragma is not terminated'),
+            ('PROGRAM p VAR x : INT; END_VAR x := 1; } END_PROGRAM',
+             'Unexpected char: }')):
+        warns, rc = check_program(src)
+        e = _syntax_errors(warns)
+        assert rc == 1
+        assert len(e) == 1 and e[0].id == 'LexingError' and e[0].msg == msg, warns
+        with DumpManager('stdin.dump.json'):
+            pass
+
+
+def _array_inits(scheme):
+    return {v['var']['loc'][1]['name']: [c[3] for c in v['ty_spec'][3]]
+            for pou in scheme['programs'] for v in pou['variables']
+            if v['ty_spec'] and v['ty_spec'][0] == 'DTyDeclArrayType'}
+
+
+def test_array_init_repetition():
+    """`n(v)` repeats `v` n times, `n()` n default values (IEC 61131-3,
+    B.1.3.3)."""
+    warns, rc = check_program(
+        """
+        PROGRAM p
+        VAR
+          a : ARRAY[1..5] OF INT := [2(7), 3, 2()];
+          b : ARRAY[1..4] OF INT := [4(0)];
+          c : ARRAY[1..3] OF INT := [4(1)];
+        END_VAR
+        a[1] := b[1] + c[1];
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    ws = filter_warns(warns, 'OutOfBounds')
+    assert [w.msg for w in ws] == \
+        ['C: Array initializer list exceeds capacity. Last 1 values will be lost.'], ws
+    with open('stdin.dump.json') as fp:
+        inits = _array_inits(json.load(fp))
+    os.remove('stdin.dump.json')
+    assert inits == {'A': [7, 7, 3, 0, 0], 'B': [0, 0, 0, 0], 'C': [1, 1, 1, 1]}
+
+
+def test_program_configuration_connections():
+    """`PROGRAM inst WITH t : prg (...)` (IEC 61131-3, B.1.7)."""
+    warns, rc = check_program(
+        """
+        PROGRAM prg VAR_INPUT i : INT; END_VAR VAR x : INT; END_VAR x := i; END_PROGRAM
+        CONFIGURATION cfg
+          RESOURCE r ON PLC
+            TASK t (INTERVAL := T#10ms, PRIORITY := 1);
+            PROGRAM inst WITH t : prg (i := 1);
+            PROGRAM inst2 : prg (i := 2);
+          END_RESOURCE
+        END_CONFIGURATION
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
     with DumpManager('stdin.dump.json'):
         pass
