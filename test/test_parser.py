@@ -782,3 +782,12 @@ def test_bool_literals_case_insensitive():
     s = json.dumps(d)
     assert '"name": "TRUE"' not in s and '"name": "FALSE"' not in s
     assert '"name": "TRUEISH"' in s and '"name": "FALSE_X"' in s
+
+
+def test_equ_is_not_a_keyword():
+    """EQU is not an IEC 61131-3 keyword (annex C)."""
+    warns, rc = check_program(
+        'PROGRAM p VAR equ, Equ_1 : INT; END_VAR equ := Equ_1 + 1; END_PROGRAM')
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    with DumpManager('stdin.dump.json'):
+        pass

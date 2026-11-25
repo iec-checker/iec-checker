@@ -45,7 +45,6 @@
       "any_date",           T_ANY_DATE;
   (* }}} *)
   (* {{{ Operators *)
-      "equ",                T_EQU;
       "xor",                T_XOR;
       "or",                 T_OR;
       "and",                T_AND;

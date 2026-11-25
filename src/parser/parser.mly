@@ -205,7 +205,6 @@
 %token T_OR             "OR"
 %token T_XOR            "XOR"
 %token T_AND            "AND"
-%token T_EQU            "EQU"
 (* }}} *)
 (* {{{ ST control statements *)
 %token<IECCheckerCore.Tok_info.t> T_IF T_THEN T_ELSIF T_ELSE T_END_IF
