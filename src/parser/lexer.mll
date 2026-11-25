@@ -147,7 +147,8 @@
       ]
 }
 
-let common_char_value = ['!' '#' '%' '&' '('-'@' 'A'-'Z' '['-'`' 'a'-'z' '{'-'~']
+let common_char_value = [' ' '!' '#' '%' '&' '('-'@' 'A'-'Z' '['-'`' 'a'-'z' '{'-'~' '\128'-'\255']
+let common_char_escape = '$' ['$' 'L' 'N' 'P' 'R' 'T' 'l' 'n' 'p' 'r' 't']
 
 let whitespace = ['\r' '\t' ' ']
 
@@ -408,7 +409,7 @@ rule initial tokinfo =
   (* {{{ String literals *)
 and sstring_literal buf ti = parse
   | '"' { Buffer.add_char buf '"'; sstring_literal buf ti lexbuf }
-  | common_char_value+ | '$' '\'' | '$' hex_digit hex_digit
+  | common_char_value+ | common_char_escape | '$' '\'' | '$' hex_digit hex_digit
   {
     Buffer.add_string buf (Lexing.lexeme lexbuf);
     sstring_literal buf ti lexbuf
@@ -423,7 +424,7 @@ and sstring_literal buf ti = parse
 
 and dstring_literal buf ti = parse
   | '\'' { Buffer.add_char buf '\''; dstring_literal buf ti lexbuf }
-  | common_char_value+ | '$' '"' | '$' hex_digit hex_digit hex_digit hex_digit
+  | common_char_value+ | common_char_escape | '$' '"' | '$' hex_digit hex_digit hex_digit hex_digit
   {
     Buffer.add_string buf (Lexing.lexeme lexbuf);
     dstring_literal buf ti lexbuf

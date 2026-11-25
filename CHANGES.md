@@ -41,6 +41,7 @@
 - Add Dockerfile (#69, @cangkui)
 - Parser: Preserve literal types; add bit string literals (#66, @cangkui)
 - Add `PLCOpen-N1` (#68, @cangkui)
+- Lexer: accept spaces, non-ASCII characters and the `$$ $L $N $P $R $T` escapes in string literals
 
 ## 0.4.0 (2022-02-26)
 

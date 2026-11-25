@@ -369,3 +369,42 @@ def test_literal_elementary_ty_inference():
     assert by_key[("BitString", 43981)] == ["WORD"], \
         f'WORD#16#ABCD should have ty="WORD", got {by_key[("BitString", 43981)]}'
     os.remove(fdump)
+
+
+def _syntax_errors(warns):
+    return [w for w in warns if w.id in ('ParserError', 'LexingError')]
+
+
+def test_string_literal_charset():
+    """Space, non-ASCII bytes and `$` escapes are valid string characters."""
+    warns, rc = check_program(
+        """
+        PROGRAM p
+        VAR
+          s : STRING := 'a b, $$ $L $N $P $R $T $l $n $p $r $t $' $41 "q"';
+          w : WSTRING := "a b, $$ $N $T $" $0041 'q'";
+          u : STRING := 'Schließen привет';
+        END_VAR
+        s := 'State Transition: ';
+        w := " ";
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    assert rc == 0
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
+def test_string_literal_rejects_unknown_escape():
+    warns, rc = check_program(
+        """
+        PROGRAM p
+        VAR s : STRING := '$Q'; END_VAR
+        s := 'x';
+        END_PROGRAM
+        """.replace('\n', ''))
+    e = _syntax_errors(warns)
+    assert rc == 1
+    assert len(e) == 1 and e[0].id == 'LexingError', warns
+    with DumpManager('stdin.dump.json'):
+        pass
