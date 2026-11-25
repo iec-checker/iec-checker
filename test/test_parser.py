@@ -832,3 +832,15 @@ def test_utf8_bom(tmp_path):
     b.write_bytes(bom + b'PROGRAM p VAR x : INT; END_VAR x := f(); END_PROGRAM\n')
     warns, rc = _run_raw(b, '-m', str(a))
     assert not [w for w in warns if w['id'] in ('ParserError', 'LexingError')], warns
+
+
+def test_string_prefix_case_insensitive():
+    p = """
+        PROGRAM p
+        VAR s : STRING; END_VAR
+        s := STRING#'a b'; s := STRING#'c';
+        END_PROGRAM
+        """.replace('\n', '')
+    low = p.replace("STRING#'a", "string#'a").replace("STRING#'c", "String#'c")
+    assert "string#'a b'" in low and "String#'c'" in low
+    assert _dump_of(p) == _dump_of(low)

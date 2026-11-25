@@ -173,6 +173,7 @@
       ]
 }
 
+let string_prefix = ['S' 's'] ['T' 't'] ['R' 'r'] ['I' 'i'] ['N' 'n'] ['G' 'g'] '#'
 let common_char_value = [' ' '!' '#' '%' '&' '('-'@' 'A'-'Z' '['-'`' 'a'-'z' '{'-'~' '\128'-'\255']
 let common_char_escape = '$' ['$' 'L' 'N' 'P' 'R' 'T' 'l' 'n' 'p' 'r' 't']
 
@@ -425,9 +426,9 @@ rule initial tokinfo =
   | "(*"             { comment tokinfo 1 lexbuf }
   | "//"             { singleline_comment tokinfo lexbuf }
   | "%"              { let ti = tokinfo lexbuf in direct_variable (Syntax.DirVar.create ti) ti lexbuf }
-  | "STRING#" '\''   { let ti = tokinfo lexbuf in sstring_literal (Buffer.create 19) ti lexbuf }
+  | string_prefix '\'' { let ti = tokinfo lexbuf in sstring_literal (Buffer.create 19) ti lexbuf }
   | '\''             { let ti = tokinfo lexbuf in sstring_literal (Buffer.create 19) ti lexbuf }
-  | "STRING#" '"'    { let ti = tokinfo lexbuf in dstring_literal (Buffer.create 19) ti lexbuf }
+  | string_prefix '"'  { let ti = tokinfo lexbuf in dstring_literal (Buffer.create 19) ti lexbuf }
   | '"'              { let ti = tokinfo lexbuf in dstring_literal (Buffer.create 19) ti lexbuf }
   | eof              { T_EOF }
   | ['\192'-'\255'] ['\128'-'\191']* as u { raise (LexingError ("Unexpected char: " ^ u)) }
