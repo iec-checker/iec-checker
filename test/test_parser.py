@@ -2,6 +2,7 @@
 import sys
 import os
 import json
+import re
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../src"))
@@ -406,5 +407,53 @@ def test_string_literal_rejects_unknown_escape():
     e = _syntax_errors(warns)
     assert rc == 1
     assert len(e) == 1 and e[0].id == 'LexingError', warns
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
+def test_control_keywords_case_insensitive():
+    """`if`, `If` and `IF` are the same keyword (IEC 61131-3, 2.1.3)."""
+    p = """
+        PROGRAM p
+        VAR i, x : INT; END_VAR
+        IF x = 1 THEN x := 2; ELSIF x = 2 THEN x := 3; ELSE x := 4; END_IF;
+        CASE x OF 1: x := 2; ELSE x := 3; END_CASE;
+        FOR i := 10 TO 1 BY -1 DO IF i = 3 THEN CONTINUE; END_IF; EXIT; END_FOR;
+        WHILE x < 10 DO x := x + 1; END_WHILE;
+        REPEAT x := x - 1; UNTIL x = 0 END_REPEAT;
+        RETURN;
+        END_PROGRAM
+        """.replace('\n', '')
+    kws = ['END_REPEAT', 'END_WHILE', 'END_CASE', 'END_FOR', 'END_IF',
+           'CONTINUE', 'REPEAT', 'RETURN', 'ELSIF', 'UNTIL', 'WHILE',
+           'EXIT', 'ELSE', 'THEN', 'CASE', 'FOR', 'IF', 'OF', 'TO', 'BY', 'DO']
+
+    def recase(f):
+        out = p
+        for k in kws:
+            out = re.sub(rf'\b{k}\b', f(k), out)
+        return out
+
+    dumps = []
+    for src in (p, recase(str.lower), recase(str.capitalize)):
+        warns, rc = check_program(src)
+        assert not _syntax_errors(warns), (src, _syntax_errors(warns))
+        assert rc == 0
+        with open('stdin.dump.json') as fp:
+            dumps.append(json.load(fp))
+        os.remove('stdin.dump.json')
+    assert dumps[0] == dumps[1] == dumps[2]
+
+
+def test_keyword_prefixed_identifiers():
+    warns, rc = check_program(
+        """
+        PROGRAM p
+        VAR iffy, format, todo, done, ofs, bypass, exits : INT; END_VAR
+        iffy := format + todo + done + ofs + bypass + exits;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    assert rc == 0
     with DumpManager('stdin.dump.json'):
         pass

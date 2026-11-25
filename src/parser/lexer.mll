@@ -145,6 +145,33 @@
       "not",                T_NOT;
   (* }}} *)
       ]
+
+  let ctrl_keywords_table = Stdlib.Hashtbl.create 31
+  let () =
+    Stdlib.List.iter (fun (x,y) -> Stdlib.Hashtbl.add ctrl_keywords_table x y)
+      [
+      "if",         (fun ti -> T_IF(ti));
+      "then",       (fun ti -> T_THEN(ti));
+      "elsif",      (fun ti -> T_ELSIF(ti));
+      "else",       (fun ti -> T_ELSE(ti));
+      "end_if",     (fun ti -> T_END_IF(ti));
+      "case",       (fun ti -> T_CASE(ti));
+      "of",         (fun ti -> T_OF(ti));
+      "end_case",   (fun ti -> T_END_CASE(ti));
+      "for",        (fun ti -> T_FOR(ti));
+      "to",         (fun ti -> T_TO(ti));
+      "by",         (fun ti -> T_BY(ti));
+      "do",         (fun ti -> T_DO(ti));
+      "end_for",    (fun ti -> T_END_FOR(ti));
+      "while",      (fun ti -> T_WHILE(ti));
+      "end_while",  (fun ti -> T_END_WHILE(ti));
+      "repeat",     (fun ti -> T_REPEAT(ti));
+      "end_repeat", (fun ti -> T_END_REPEAT(ti));
+      "until",      (fun ti -> T_UNTIL(ti));
+      "exit",       (fun ti -> T_EXIT(ti));
+      "continue",   (fun ti -> T_CONTINUE(ti));
+      "return",     (fun ti -> T_RETURN(ti));
+      ]
 }
 
 let common_char_value = [' ' '!' '#' '%' '&' '('-'@' 'A'-'Z' '['-'`' 'a'-'z' '{'-'~' '\128'-'\255']
@@ -238,31 +265,6 @@ rule initial tokinfo =
   | "&"      { T_AND }
   (* }}} *)
 
-  (* {{{ ST control statements *)
-  (* TODO: Case-insensitive *)
-  | "IF"             { let ti = tokinfo lexbuf in T_IF(ti) }
-  | "THEN"           { let ti = tokinfo lexbuf in T_THEN(ti) }
-  | "ELSIF"          { let ti = tokinfo lexbuf in T_ELSIF(ti) }
-  | "ELSE"           { let ti = tokinfo lexbuf in T_ELSE(ti) }
-  | "END_IF"         { let ti = tokinfo lexbuf in T_END_IF(ti) }
-  | "CASE"           { let ti = tokinfo lexbuf in T_CASE(ti) }
-  | "OF"             { let ti = tokinfo lexbuf in T_OF(ti) }
-  | "END_CASE"       { let ti = tokinfo lexbuf in T_END_CASE(ti) }
-  | "FOR"            { let ti = tokinfo lexbuf in T_FOR(ti) }
-  | "TO"             { let ti = tokinfo lexbuf in T_TO(ti) }
-  | "BY"             { let ti = tokinfo lexbuf in T_BY(ti) }
-  | "DO"             { let ti = tokinfo lexbuf in T_DO(ti) }
-  | "END_FOR"        { let ti = tokinfo lexbuf in T_END_FOR(ti) }
-  | "WHILE"          { let ti = tokinfo lexbuf in T_WHILE(ti) }
-  | "END_WHILE"      { let ti = tokinfo lexbuf in T_END_WHILE(ti) }
-  | "REPEAT"         { let ti = tokinfo lexbuf in T_REPEAT(ti) }
-  | "END_REPEAT"     { let ti = tokinfo lexbuf in T_END_REPEAT(ti) }
-  | "UNTIL"          { let ti = tokinfo lexbuf in T_UNTIL(ti) }
-  | "EXIT"           { let ti = tokinfo lexbuf in T_EXIT(ti) }
-  | "CONTINUE"       { let ti = tokinfo lexbuf in T_CONTINUE(ti) }
-  | "RETURN"         { let ti = tokinfo lexbuf in T_RETURN(ti) }
-(* }}} *)
-
   (* {{{ Boolean literals *)
   | bool_false
   {
@@ -281,6 +283,9 @@ rule initial tokinfo =
   (* {{{ Case-insensitive lexing of identifiers and reserved keywords. *)
   | label as v
   {
+    match Stdlib.Hashtbl.find_opt ctrl_keywords_table (String.lowercase v) with
+    | Some f -> f (tokinfo lexbuf)
+    | None ->
     try
       let keyword = Stdlib.Hashtbl.find keywords_table (String.lowercase v) in
       (* Printf.printf "KEYWORD: %s\n" v; *)
