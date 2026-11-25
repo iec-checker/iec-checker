@@ -765,3 +765,20 @@ def test_real_exponent_case_insensitive():
     assert d == _dump_of(p)
     s = json.dumps(d)
     assert all(f', {v}]' in s for v in (1500.0, 0.002, 100.0)), s
+
+
+def test_bool_literals_case_insensitive():
+    """TRUE and FALSE are keywords, so their case is not significant
+    (IEC 61131-3, 2.1.3); they must never be read as variables."""
+    d = _dump_of(
+        """
+        PROGRAM p
+        VAR b, trueish, false_x : BOOL; END_VAR
+        b := tRuE; b := fAlSe; b := bool#1; b := Bool#0;
+        b := bOOl#TrUe; b := BOOL#false; b := trueish; b := false_x;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert list(_find_bool_constants(d)) == [True, False, True, False, True, False]
+    s = json.dumps(d)
+    assert '"name": "TRUE"' not in s and '"name": "FALSE"' not in s
+    assert '"name": "TRUEISH"' in s and '"name": "FALSE_X"' in s

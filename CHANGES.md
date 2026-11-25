@@ -52,6 +52,7 @@
 - Lexer: accept mixed-case `ms`, `us` and `ns` duration units (`T#5Ms`)
 - Lexer: accept underlines between duration units (`T#5d_14h_12m_18s_3.5ms`) and identifiers starting with an underline and a digit (`_1abc`)
 - Lexer: accept a lowercase exponent in real literals (`1.5e3`)
+- Lexer: lex `TRUE`/`FALSE` and the `BOOL#` prefix case-insensitively; mixed-case spellings such as `tRuE` were silently parsed as variables
 
 ## 0.4.0 (2022-02-26)
 

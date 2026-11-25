@@ -191,8 +191,11 @@ let binary_integer = '2' '#' (('_')?bit)+
 let octal_integer = '8' '#' (('_')?octal_digit)+
 let hex_integer = '1' '6' '#' (('_')?hex_digit)+
 
-let bool_false = "FALSE" | "False" | "false" | "BOOL#FALSE" | "BOOL#False" | "BOOL#0"
-let bool_true = "TRUE" | "True" | "true" | "BOOL#TRUE" | "BOOL#True" | "BOOL#1"
+let kw_false = ['F' 'f'] ['A' 'a'] ['L' 'l'] ['S' 's'] ['E' 'e']
+let kw_true = ['T' 't'] ['R' 'r'] ['U' 'u'] ['E' 'e']
+let bool_prefix = ['B' 'b'] ['O' 'o'] ['O' 'o'] ['L' 'l'] '#'
+let bool_false = kw_false | bool_prefix (kw_false | '0')
+let bool_true = kw_true | bool_prefix (kw_true | '1')
 
 let exponent = ['E' 'e'] (['+' '-'])? integer
 
