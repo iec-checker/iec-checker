@@ -194,7 +194,7 @@ let hex_integer = '1' '6' '#' (('_')?hex_digit)+
 let bool_false = "FALSE" | "False" | "false" | "BOOL#FALSE" | "BOOL#False" | "BOOL#0"
 let bool_true = "TRUE" | "True" | "true" | "BOOL#TRUE" | "BOOL#True" | "BOOL#1"
 
-let exponent = 'E' (['+' '-'])? integer
+let exponent = ['E' 'e'] (['+' '-'])? integer
 
 (* The correct definition for real would be:
    let real = integer '.' integer (exponent)?

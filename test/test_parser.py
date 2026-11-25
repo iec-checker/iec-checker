@@ -749,3 +749,19 @@ def test_identifier_underscore_digit():
         assert rc == 1 and len(e) == 1 and e[0].id == 'LexingError', (bad, warns)
         with DumpManager('stdin.dump.json'):
             pass
+
+
+def test_real_exponent_case_insensitive():
+    """`exponent ::= ('E' | 'e') ['+'|'-'] integer` (IEC 61131-3, B.1.2.1)."""
+    p = """
+        PROGRAM p
+        VAR r : LREAL; END_VAR
+        r := 1.5E3; r := 2.0E-3; r := 1.0E+2;
+        END_PROGRAM
+        """.replace('\n', '')
+    low = re.sub(r'(?<=\d)E(?=[+-]?\d)', 'e', p)
+    assert '1.5e3' in low and '2.0e-3' in low and '1.0e+2' in low
+    d = _dump_of(low)
+    assert d == _dump_of(p)
+    s = json.dumps(d)
+    assert all(f', {v}]' in s for v in (1500.0, 0.002, 100.0)), s
