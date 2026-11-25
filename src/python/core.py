@@ -45,7 +45,6 @@ def run_checker(paths: str, binary: str = binary_default,
     p = subprocess.Popen([binary, "-o", "json", "-q", "-d", *args, *paths],
                          stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT)
-    p.wait()
     out, err = p.communicate()
     warnings = process_output(out)
     return (warnings, p.returncode)
@@ -58,7 +57,6 @@ def run_checker_full_out(paths: str, binary: str = binary_default,
     p = subprocess.Popen([binary, *args, *paths],
                          stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT)
-    p.wait()
     out, err = p.communicate()
     return (p.returncode, '\n'.join([str(out), str(err)]))
 

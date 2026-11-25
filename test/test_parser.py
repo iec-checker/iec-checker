@@ -113,6 +113,8 @@ def test_no_parser_error_no_context():
 
 def test_parser_errors():
     for fname in os.listdir('st/bad/'):
+        if not fname.endswith('.st'):
+            continue
         f = os.path.join('st/bad/', fname)
         fdump = f'{f}.dump.json'
         checker_warnings, rc = run_checker([f])

@@ -1,10 +1,11 @@
 """Tests for internal errors."""
 import sys
 import os
+import threading
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../src"))
-from python.core import run_checker  # noqa
+from python.core import run_checker, run_checker_full_out  # noqa
 
 
 def test_missing_file():
@@ -34,3 +35,17 @@ def test_large_file():
         """)
     checker_warnings, rc = run_checker([fname])
     os.remove(fname)
+
+
+def test_large_output(tmp_path):
+    """The checker's output may exceed the OS pipe buffer."""
+    f = tmp_path / 'big.st'
+    f.write_text('PROGRAM p @ (*' + 'x' * 2 ** 17 + '*)\nEND_PROGRAM\n')
+    for run in (lambda: run_checker([str(f)]),
+                lambda: run_checker_full_out([str(f)])):
+        res = []
+        t = threading.Thread(target=lambda: res.append(run()), daemon=True)
+        t.start()
+        t.join(timeout=30)
+        assert not t.is_alive(), 'deadlocked on a full stdout pipe'
+        assert len(str(res[0])) > 2 ** 16

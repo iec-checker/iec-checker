@@ -47,6 +47,7 @@
 - Parser/Lexer: report the column where the offending token starts in `ParserError`/`LexingError`, matching the context caret
 - Parser: accept multi-dimensional (`m[i, j]`) and chained (`m[i][j]`) subscripts in expressions, and chained subscripts on assignment targets
 - Lexer: skip `{...}` pragmas anywhere whitespace is allowed; parse array init repetition as `n(v)` (n copies of `v`) and program configuration connections as `PROGRAM inst : prg (...)`
+- Python wrapper: fix a deadlock in `run_checker` (used by `checker.py` and the tests) when the checker prints more than the OS pipe buffer
 
 ## 0.4.0 (2022-02-26)
 
