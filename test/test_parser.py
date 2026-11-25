@@ -567,3 +567,22 @@ def test_syntax_error_column_is_token_start():
         assert caret.index('^') - caret.index('|') - 1 == col, e[0].context
         with DumpManager('stdin.dump.json'):
             pass
+
+
+def test_subscript_lists():
+    """`m[i, j]` and `m[i][j]` are array variables (IEC 61131-3, B.1.4.2)."""
+    warns, rc = check_program(
+        """
+        TYPE R : ARRAY[0..1] OF INT; END_TYPE
+        TYPE M : ARRAY[0..1] OF R; END_TYPE
+        PROGRAM p
+        VAR m : ARRAY[1..2, 1..3] OF INT; n : M; i, x : INT; END_VAR
+        m[1, 2] := n[0][1];
+        n[i][i + 1] := m[i, i + 1] + m[2, 3];
+        IF m[1, 1] > n[1][0] THEN x := MAX(m[1, 1], n[0][0]); END_IF;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    assert rc == 0
+    with DumpManager('stdin.dump.json'):
+        pass

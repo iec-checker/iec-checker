@@ -33,3 +33,24 @@ def test_use_define_array():
     with DumpManager(fdump) as dm:
         scheme = dm.scheme
         assert scheme
+
+
+def test_use_define_array_of_arrays():
+    """Only the first subscript list addresses the declared dimensions;
+    the following ones index into the element type."""
+    warns, rc = check_program(
+        """
+        TYPE R : ARRAY [0..9] OF INT; END_TYPE
+        PROGRAM p
+          VAR
+            A: ARRAY [0..1] OF R;
+          END_VAR
+          A[1][5] := 1; (* no false positive *)
+          A[2][0] := 1; (* error *)
+        END_PROGRAM
+        """.replace('\n', ''))
+    ws = filter_warns(warns, 'OutOfBounds')
+    assert [w.msg for w in ws] == ['A index 2 is out of range [0 .. 1]'], ws
+    assert not filter_warns(warns, 'ParserError')
+    with DumpManager('stdin.dump.json'):
+        pass

@@ -1222,7 +1222,7 @@ let variable_name :=
   { let (name, ti) = id in (name, ti) }
 
 let multi_elem_var :=
-  | name_ti = var_access; T_LBRACK; sub_list = subscript_list; T_RBRACK;
+  | name_ti = var_access; T_LBRACK; sub_list = subscript_list; T_RBRACK; list(array_access);
   {
    let (name, ti) = name_ti in
    let sv = Syntax.SymVar.create name ti in
@@ -1900,11 +1900,10 @@ let enum_value_use :=
 let variable_access :=
   | ~ = variable_expr; <>
   | ~ = variable_expr; multibit_part_access; <>
-  (* Non-standard extension to handle IF ARR1[i] < 10 THEN *)
-  | ~ = variable_expr; array_access; <>
+  | ~ = variable_expr; nonempty_list(array_access); <>
 
 let array_access :=
-  | T_LBRACK; ~ = expression; T_RBRACK; <>
+  | T_LBRACK; ~ = subscript_list; T_RBRACK; <>
 
 (* Helper rule for variable_access.
    This is required to avoid shift/reduce conflict with identifier from func_name rule. *)

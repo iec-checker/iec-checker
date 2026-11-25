@@ -45,6 +45,7 @@
 - Lexer: make control-flow keywords (`IF`, `THEN`, `CASE`, `FOR`, `RETURN`, ...) case-insensitive like all other keywords
 - Parser: accept enumerated values (`A`, `E#A`) and named constants as `CASE` labels, and enumerated values as variable, struct and array element initializers
 - Parser/Lexer: report the column where the offending token starts in `ParserError`/`LexingError`, matching the context caret
+- Parser: accept multi-dimensional (`m[i, j]`) and chained (`m[i][j]`) subscripts in expressions, and chained subscripts on assignment targets
 
 ## 0.4.0 (2022-02-26)
 
