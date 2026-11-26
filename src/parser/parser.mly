@@ -1819,7 +1819,7 @@ let unary_expr :=
   | T_NOT; e = primary_expr;
   {
     let ti = Syntax.expr_get_ti e in
-    Syntax.ExprUn(ti, Syntax.NEG, e)
+    Syntax.ExprUn(ti, Syntax.NOT, e)
   }
   | ~ = primary_expr; <>
 

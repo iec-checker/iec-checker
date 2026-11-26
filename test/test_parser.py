@@ -1136,3 +1136,30 @@ def test_call_positional_not_argument():
     assert picks[1][0]['stmt'][2][0] == 'Bin'
     tm = list(_find_calls(d, 'TM'))
     assert len(tm) == 1 and tm[0][0]['name'] == 'Q' and tm[0][0]['inverted'] is True
+
+
+def _unary_ops(node):
+    if isinstance(node, list):
+        if len(node) == 4 and node[0] == 'Un':
+            yield node[2][0]
+        for c in node:
+            yield from _unary_ops(c)
+    elif isinstance(node, dict):
+        for c in node.values():
+            yield from _unary_ops(c)
+
+
+def test_not_is_not_negation():
+    """`NOT x` is logical negation, `-x` arithmetic negation."""
+    d = _dump_of(
+        """
+        PROGRAM p
+        VAR b, c : BOOL; i : INT; END_VAR
+        b := NOT b;
+        i := -i;
+        b := NOT (b AND c);
+        i := -(i + 1);
+        b := MOVE(NOT c);
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert list(_unary_ops(d)) == ['NOT', 'NEG', 'NOT', 'NEG', 'NOT']
