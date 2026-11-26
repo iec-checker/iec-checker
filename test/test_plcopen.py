@@ -347,3 +347,33 @@ def test_l22_l13_qualified_loop_variable():
     assert [w.msg for w in l13] == ["FOR loop variable 'G.I' should not be used outside the FOR loop"]
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_cp8_cp28_equality_and_inequality_once():
+    """`=` and `<>` are both reported, each comparison exactly once."""
+    for check in ('cp8', 'cp28'):
+        f = f'st/plcopen-{check}.st'
+        warns, rc = run_checker([f])
+        lines = sorted(w.linenr for w in filter_warns(warns, f'PLCOPEN-{check.upper()}'))
+        assert lines == [6, 10, 14, 18], (check, lines)
+        with DumpManager(f'{f}.dump.json'):
+            pass
+
+
+def test_cp8_cp28_nested_comparisons(tmp_path):
+    f = tmp_path / 'nested.st'
+    f.write_text(
+        'PROGRAM nested\n'
+        'VAR r : REAL; t : TIME; b : BOOL; END_VAR\n'
+        'IF (r = 1.5) AND b THEN\n'
+        '  IF b THEN\n'
+        '    IF r <> 2.5 THEN b := FALSE; END_IF;\n'
+        '  END_IF;\n'
+        'END_IF;\n'
+        'b := MOVE(t = T#1s);\n'
+        'WHILE t <> T#2s DO t := t + T#1s; END_WHILE;\n'
+        'b := r < 1.5;\n'
+        'END_PROGRAM\n')
+    warns, rc = run_checker([str(f)])
+    assert sorted(w.linenr for w in filter_warns(warns, 'PLCOPEN-CP8')) == [3, 5]
+    assert sorted(w.linenr for w in filter_warns(warns, 'PLCOPEN-CP28')) == [8, 9]

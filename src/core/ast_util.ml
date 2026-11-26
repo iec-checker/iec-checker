@@ -159,6 +159,21 @@ let get_pou_exprs elem =
   get_pou_stmts elem
   |> List.fold_left ~init:[] ~f:(fun acc stmt -> acc @ (get_stmt_exprs stmt))
 
+(* [get_pou_exprs] reaches a nested statement both on its own and through its
+   parent, so the same expression node can come twice: keep the first. *)
+let get_pou_subexprs elem =
+  let rec walk acc e =
+    if List.mem acc e ~equal:phys_equal then acc
+    else
+      let acc = e :: acc in
+      match e with
+      | S.ExprBin (_, l, _, r) -> walk (walk acc l) r
+      | S.ExprUn (_, _, e') -> walk acc e'
+      | S.ExprFuncCall (_, stmt) -> List.fold_left (get_stmt_exprs stmt) ~init:acc ~f:walk
+      | S.ExprVariable _ | S.ExprConstant _ -> acc
+  in
+  get_pou_exprs elem |> List.fold_left ~init:[] ~f:walk |> List.rev
+
 let get_var_uses elem =
   let rec get_vars = function
     | S.ExprVariable (_, vu) -> [vu]

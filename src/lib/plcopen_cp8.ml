@@ -13,13 +13,13 @@ let is_float = function
   | _ -> false
 
 let check_elem elem =
-  AU.get_pou_exprs elem
+  AU.get_pou_subexprs elem
   |> List.fold_left ~init:[]
     ~f:(fun acc expr -> begin
           match expr with
           | S.ExprBin(ti, lhs, operator, rhs) -> begin
               match operator with
-              | NEG | EQ -> begin
+              | EQ | NEQ -> begin
                   if (is_float lhs) || (is_float rhs) then begin
                     let msg = "Floating point comparison shall not be equality or inequality" in
                     acc @ [(Warn.mk ti.linenr ti.col "PLCOPEN-CP8" msg)]

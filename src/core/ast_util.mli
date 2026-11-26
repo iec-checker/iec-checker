@@ -24,6 +24,10 @@ val get_stmts : S.iec_library_element list -> S.statement list
 val get_pou_exprs : S.iec_library_element -> S.expr list
 (** Collect the expressions from each statement of the POU *)
 
+val get_pou_subexprs : S.iec_library_element -> S.expr list
+(** Collect every distinct expression of the POU, nested ones included, each
+    once, in source order *)
+
 val get_var_uses : S.iec_library_element -> S.VarUse.t list
 (** Collect all VarUse from the given POU *)
 
