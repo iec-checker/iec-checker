@@ -73,6 +73,9 @@
     let var_use = Syntax.VarUse.create_dir dv Syntax.VarUse.Elementary in
     var_use
   
+  let qj (a, (s : TI.t)) (b, (t : TI.t)) =
+    (a ^ "." ^ b, { t with raw = s.raw ^ "." ^ t.raw })
+
   let stmt_list_of_option = function
     | None -> []
     | Some l -> l
@@ -751,7 +754,7 @@ let simple_type_access :=
   (* | ~ = subrange_type_name; <> *)
 
 let enum_type_access :=
-  | id = T_IDENTIFIER;
+  | id = qname;
   { let name, _ = id in name }
 
 (* array_type_access: *)
@@ -759,11 +762,11 @@ let enum_type_access :=
   (* { } *)
 
 let struct_type_access :=
-  | id = T_IDENTIFIER;
+  | id = qname;
   { let name, _ = id in name }
 
 let simple_type_name :=
-  | id = T_IDENTIFIER;
+  | id = qname;
   { let name, _ = id in name }
 
 (* let subrange_type_name :=      *)
@@ -943,7 +946,7 @@ let enum_value_spec :=
   }
 
 let enum_value :=
-  | ty_opt = option(enum_value_opt); id = T_IDENTIFIER;
+  | ty_opt = option(enum_value_opt); id = qname;
   {
     let elem_name, _ = id in
     Syntax.{ enum_type_name = ty_opt; elem_name; initial_value = None; }
@@ -951,7 +954,7 @@ let enum_value :=
 
 (* Helper rule for enum_value and enum_value_use  *)
 let enum_value_opt :=
-  | ~ = enum_type_name; T_SHARP; <>
+  | id = qname; T_SHARP; { let name, _ = id in name }
 
 let array_type_decl :=
   | name_type = type_decl_helper_opt; specs = array_spec_init;
@@ -1149,7 +1152,7 @@ let ref_spec :=
 (* ref_type_access: *)
 
 let ref_name :=
-  | id = T_IDENTIFIER;
+  | id = qname;
   { let name, ti = id in (name, ti) }
 
 let ref_value :=
@@ -1189,12 +1192,12 @@ let variable :=
   { mk_var_use_sym sv }
 
 let symbolic_variable :=
-  | out = variable_name;
+  | out = var_head;
   { let (name, ti) = out in Syntax.SymVar.create name ti }
   | ~ = multi_elem_var; <>
 
 let var_access :=
-  | ~ = variable_name; <>
+  | ~ = qname; <>
   (* | ~ = ref_deref; <> *)
 
 let variable_name :=
@@ -1202,7 +1205,7 @@ let variable_name :=
   { let (name, ti) = id in (name, ti) }
 
 let multi_elem_var :=
-  | name_ti = var_access; T_LBRACK; sub_list = subscript_list; T_RBRACK; list(array_access);
+  | name_ti = var_access; T_LBRACK; sub_list = subscript_list; T_RBRACK; list(var_suffix);
   {
    let (name, ti) = name_ti in
    let sv = Syntax.SymVar.create name ti in
@@ -1333,7 +1336,8 @@ let func_name :=
 let func_access :=
   (* | namespace_name func_name
   {  } *)
-  | ~ = func_name; <>
+  | id = qname;
+  { let (name, ti) = id in Syntax.Function.create name ti }
 
 (* Implemented in semantic analysis *)
 (* std_func_name: *)
@@ -1449,7 +1453,7 @@ let class_decl :=
 let class_specifier :=
   | T_FINAL; { Syntax.CFinal }
   | T_ABSTRACT; { Syntax.CAbstract }
-let class_type_access_helper := T_EXTENDS; id = T_IDENTIFIER; { let (name, _) = id in name }
+let class_type_access_helper := T_EXTENDS; id = qname; { let (name, _) = id in name }
 let interface_name_list_helper := T_IMPLEMENTS; ~ = interface_name_list; <>
 
 (* class_type_access: *)
@@ -1457,7 +1461,7 @@ let interface_name_list_helper := T_IMPLEMENTS; ~ = interface_name_list; <>
 (* class_instance_name: *)
 
 let interface_name_list :=
-  | ids = separated_list(T_COMMA, T_IDENTIFIER);
+  | ids = separated_list(T_COMMA, qname);
   { List.fold_left ids ~init:[] ~f:(fun acc id -> let (name, _) = id in acc @ [name] ) }
 
 let interface_decl :=
@@ -1523,7 +1527,8 @@ let prog_type_name :=
   { let name, _ = id in name }
 
 let prog_type_access :=
-  | ~ = prog_type_name; <>
+  | id = qname;
+  { let name, _ = id in name }
 (* }}} *)
 
 (* {{{ Table 54-61 -- SFC *)
@@ -1535,7 +1540,7 @@ let config_name :=
   { let name, _ = id in name }
 
 let resource_type_name :=
-  | id = T_IDENTIFIER;
+  | id = qname;
   { let name, _ = id in name }
 
 let config_decl :=
@@ -1585,24 +1590,12 @@ let access_decl :=
   {  }
 
 let access_path :=
-  | resource_name; T_DOT; direct_variable;
-  {  }
-  (* | dv = direct_variable
-  {  } *)
-  (* | resource_name; T_DOT; pn = prog_name; T_DOT fn = fb_name; T_DOT; v = symbolic_variable
-  {  } *)
-  | resource_name; T_DOT; prog_name; T_DOT; symbolic_variable;
-  {  }
-  (* | pn = prog_name; T_DOT fn = fb_name; T_DOT; v = symbolic_variable
-  {  } *)
-  | prog_name; T_DOT; symbolic_variable;
+  | symbolic_variable;
   {  }
 
 let global_var_access :=
-    | sv = global_var_name;
-    { mk_var_use_sym sv }
-    | separated_list(T_DOT, resource_name); sv = global_var_name;
-    { mk_var_use_sym sv }
+    | id = qname;
+    { let (name, ti) = id in mk_var_use name ti }
     (* | out = global_var_name; list(struct_elem_name); *)
     (* { Syntax.SymVar(out) }                                *)
     (* | separated_list(T_DOT, resource_name); out = global_var_name; list(struct_elem_name); *)
@@ -1611,14 +1604,6 @@ let global_var_access :=
 let access_name :=
   | id = T_IDENTIFIER;
   { let name, _ = id in name }
-
-let prog_output_access :=
-  | p = prog_name; T_DOT; sv = symbolic_variable;
-  {
-    let var_use = mk_var_use_sym sv in
-    let config_name = Syntax.ProgramConfig.get_name p in
-    (config_name, var_use)
-  }
 
 let prog_name :=
   | id = T_IDENTIFIER;
@@ -1662,11 +1647,6 @@ let data_source :=
     Syntax.Task.DSConstant(c)
   }
   | ~ = global_var_access; <Syntax.Task.DSGlobalVar>
-  | out = prog_output_access;
-  {
-    let (prog_name, var) = out in
-    Syntax.Task.DSProgOutput(prog_name, var)
-  }
   | dv = direct_variable;
   {
     let var_use = mk_var_use_dir dv in
@@ -1676,9 +1656,9 @@ let data_source :=
 let prog_config :=
   | T_PROGRAM; pc = prog_name_qual; T_COLON; tn = prog_type_access;
   { Syntax.ProgramConfig.set_type_name pc tn }
-  | T_PROGRAM; pc = prog_name_qual; T_WITH; t = task_name; T_COLON; tn = prog_type_name;
+  | T_PROGRAM; pc = prog_name_qual; T_WITH; t = task_name; T_COLON; tn = prog_type_access;
   { Syntax.ProgramConfig.set_type_name (Syntax.ProgramConfig.set_task pc t) tn }
-  | T_PROGRAM; pc = prog_name_qual; T_WITH; t = task_name; T_COLON; tn = prog_type_name; T_LPAREN; cvs = separated_list(T_COMMA, prog_conf_elem); T_RPAREN;
+  | T_PROGRAM; pc = prog_name_qual; T_WITH; t = task_name; T_COLON; tn = prog_type_access; T_LPAREN; cvs = separated_list(T_COMMA, prog_conf_elem); T_RPAREN;
   {
     let pc = Syntax.ProgramConfig.set_conn_vars pc cvs in
     Syntax.ProgramConfig.set_type_name (Syntax.ProgramConfig.set_task pc t) tn
@@ -1765,12 +1745,12 @@ let constant_expr :=
   | ~ = enum_value_const; <>
 
 let enum_value_const :=
-  | id = T_IDENTIFIER;
+  | id = qname;
   {
     let (name, ti) = id in
     Syntax.ExprConstant(ti, Syntax.CEnumValue(ti, name))
   }
-  | enum_type_name; T_SHARP; id = T_IDENTIFIER;
+  | qname; T_SHARP; id = T_IDENTIFIER;
   {
     let (name, ti) = id in
     Syntax.ExprConstant(ti, Syntax.CEnumValue(ti, name))
@@ -1874,9 +1854,26 @@ let enum_value_use :=
   | option(enum_value_opt); ~ = T_IDENTIFIER; <>
 
 let variable_access :=
-  | ~ = variable_expr; <>
-  | ~ = variable_expr; multibit_part_access; <>
-  | ~ = variable_expr; nonempty_list(array_access); <>
+  | id = var_head;
+  { let (name, ti) = id in mk_var_use name ti }
+  | ~ = variable_expr; array_access; list(var_suffix); <>
+
+let qname :=
+  | ~ = T_IDENTIFIER; <>
+  | q = qname; T_DOT; id = T_IDENTIFIER;
+  { qj q id }
+
+let var_head :=
+  | ~ = qname; <>
+  | q = qname; T_DOT; i = T_INTEGER;
+  { let (_, t) = i in qj q (t.TI.raw, t) }
+  | ~ = qname; T_DOT; T_DIR_VAR; <>
+
+let var_suffix :=
+  | array_access; {}
+  | T_DOT; T_IDENTIFIER; {}
+  | T_DOT; T_INTEGER; {}
+  | T_DOT; T_DIR_VAR; {}
 
 let array_access :=
   | T_LBRACK; ~ = subscript_list; T_RBRACK; <>
@@ -1884,19 +1881,11 @@ let array_access :=
 (* Helper rule for variable_access.
    This is required to avoid shift/reduce conflict with identifier from func_name rule. *)
 let variable_expr :=
-  | id = T_IDENTIFIER;
+  | id = qname;
   {
     let (name, ti) = id in
     mk_var_use name ti
   }
-
-(* Standard's BNF define this rule as:
-     '.' (unsigned_int | '%' ('X'|'B'|'W'|'D'|'L') ? unsigned_int)
-   I believe that this is a typo, because it will not work with dot-separated
-   paths like this: "%X3.0.1.2".
-   This behaviour is fixed in lexer.mll (see rules for T_DIR_VAR). *)
-let multibit_part_access :=
-  | T_DOT; ~ = T_DIR_VAR; <>
 
 let func_call :=
   | f = func_access; T_LPAREN; stmts = separated_list(T_COMMA, param_assign); T_RPAREN;
@@ -2120,7 +2109,7 @@ let for_stmt :=
   }
 
 let control_variable :=
-  | id = T_IDENTIFIER;
+  | id = qname;
   {
     let (n, ti) = id in
     Syntax.SymVar.create n ti

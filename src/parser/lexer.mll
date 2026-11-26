@@ -221,7 +221,7 @@ let fix_point_ms = (integer | (integer '.' integer)) (['m' 'M'] ['s' 'S'])
 let fix_point_us = (integer | (integer '.' integer)) (['u' 'U'] ['s' 'S'])
 let fix_point_ns = (integer | (integer '.' integer)) (['n' 'N'] ['s' 'S'])
 
-let label = ('_' (letter | digit) | letter) ['A'-'Z' 'a'-'z' '0'-'9' '_' '.']*
+let label = ('_' (letter | digit) | letter) ['A'-'Z' 'a'-'z' '0'-'9' '_']*
 
 rule initial tokinfo =
   parse
@@ -252,7 +252,7 @@ rule initial tokinfo =
   | "**"                 { T_POW }
   | "*"                  { T_MUL }
   | ".."                 { T_RANGE }
-  | "{"                  { pragma tokinfo 1 lexbuf }
+  | "{"                  { pragma (initial tokinfo) 1 lexbuf }
   | "["                  { T_LBRACK }
   | "]"                  { T_RBRACK }
   | "("                  { T_LPAREN }
@@ -423,8 +423,8 @@ rule initial tokinfo =
   (* }}} *)
 
   (* {{{ Misc. *)
-  | "(*"             { comment tokinfo 1 lexbuf }
-  | "//"             { singleline_comment tokinfo lexbuf }
+  | "(*"             { comment (initial tokinfo) 1 lexbuf }
+  | "//"             { singleline_comment (initial tokinfo) lexbuf }
   | "%"              { let ti = tokinfo lexbuf in direct_variable (Syntax.DirVar.create ti) ti lexbuf }
   | string_prefix '\'' { let ti = tokinfo lexbuf in sstring_literal (Buffer.create 19) ti lexbuf }
   | '\''             { let ti = tokinfo lexbuf in sstring_literal (Buffer.create 19) ti lexbuf }
@@ -433,6 +433,18 @@ rule initial tokinfo =
   | eof              { T_EOF }
   | ['\192'-'\255'] ['\128'-'\191']* as u { raise (LexingError ("Unexpected char: " ^ u)) }
   | _                { raise (LexingError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
+  (* }}} *)
+
+  (* {{{ Token following T_DOT: field names are never keywords, digits are a bit number *)
+and field tokinfo = parse
+  | whitespace+ { field tokinfo lexbuf }
+  | '\n'        { incr_linenum lexbuf; field tokinfo lexbuf }
+  | "(*"        { comment (field tokinfo) 1 lexbuf }
+  | "//"        { singleline_comment (field tokinfo) lexbuf }
+  | "{"         { pragma (field tokinfo) 1 lexbuf }
+  | label as v  { T_IDENTIFIER(String.uppercase v, Tok_info.create_with_raw lexbuf v) }
+  | digit+ as v { T_INTEGER(int_of_string v, Tok_info.create_with_raw lexbuf v) }
+  | ""          { initial tokinfo lexbuf }
   (* }}} *)
 
   (* {{{ String literals *)
@@ -538,28 +550,35 @@ and direct_variable var ti = parse
   (* }}}*)
 
   (* {{{ Comments *)
-and comment tokinfo depth = parse
-  | '(' '*' {comment tokinfo (depth + 1) lexbuf}
-  | '*' ')' {if depth = 1 then initial tokinfo lexbuf else comment tokinfo (depth-1) lexbuf}
-  | '\n' {let () = new_line lexbuf in comment tokinfo depth lexbuf}
-  | _ {comment tokinfo depth lexbuf}
+and comment k depth = parse
+  | '(' '*' {comment k (depth + 1) lexbuf}
+  | '*' ')' {if depth = 1 then k lexbuf else comment k (depth-1) lexbuf}
+  | '\n' {let () = new_line lexbuf in comment k depth lexbuf}
+  | _ {comment k depth lexbuf}
   | eof { raise (LexingError ("Comment is not terminated")) }
-and singleline_comment tokinfo = parse
-  | '\n'   { incr_linenum lexbuf; initial tokinfo lexbuf }
+and singleline_comment k = parse
+  | '\n'   { incr_linenum lexbuf; k lexbuf }
   | eof    { T_EOF }
-  | _      { singleline_comment tokinfo lexbuf }
+  | _      { singleline_comment k lexbuf }
   (* }}} *)
 
   (* {{{ Pragmas *)
-and pragma tokinfo depth = parse
-  | '{'  { pragma tokinfo (depth + 1) lexbuf }
-  | '}'  { if depth = 1 then initial tokinfo lexbuf else pragma tokinfo (depth - 1) lexbuf }
-  | '\n' { incr_linenum lexbuf; pragma tokinfo depth lexbuf }
+and pragma k depth = parse
+  | '{'  { pragma k (depth + 1) lexbuf }
+  | '}'  { if depth = 1 then k lexbuf else pragma k (depth - 1) lexbuf }
+  | '\n' { incr_linenum lexbuf; pragma k depth lexbuf }
   | eof  { raise (LexingError "Pragma is not terminated") }
-  | _    { pragma tokinfo depth lexbuf }
+  | _    { pragma k depth lexbuf }
   (* }}} *)
 
 {
+  let token tokinfo =
+    let d = ref false in
+    fun lexbuf ->
+      let t = if !d then field tokinfo lexbuf else initial tokinfo lexbuf in
+      d := (match t with T_DOT -> true | _ -> false);
+      t
+
   let read_file parser (filename: string) =
   try
     let fh = In_channel.create filename in

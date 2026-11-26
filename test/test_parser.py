@@ -875,3 +875,147 @@ def test_subrange_var_decl_needs_integer_type():
     assert rc == 1 and len(e) == 1 and e[0].id == 'ParserError', warns
     with DumpManager('stdin.dump.json'):
         pass
+
+
+_PATH_PRG = (
+    'TYPE Cell : STRUCT lo : INT; hi : INT; END_STRUCT; END_TYPE '
+    'PROGRAM p VAR c : ARRAY[1..3] OF Cell; g : ARRAY[0..1, 0..1] OF Cell; '
+    'k : Cell; w : WORD; i, n : INT; b : BOOL; END_VAR %s END_PROGRAM')
+
+
+def test_field_after_subscript():
+    """`a[i].f` is a structured variable (IEC 61131-3, B.1.4.2)."""
+    for body in (
+            'n := c[1].lo;',
+            'c[1].lo := n;',
+            'n := c[i].lo + c[i + 1].hi;',
+            'n := g[1, 0].lo;',
+            'g[i, 1].hi := g[0, i].lo;',
+            'n := k.arr[1].lo;',
+            'k.arr[1].lo := n;',
+            'n := k.arr[1].sub.arr2[i, 2].lo;',
+            'k.arr[1].sub.arr2[i, 2].lo := n;',
+            'n := c[c[1].lo].hi;',
+            'c[c[1].lo].hi := c[c[2].hi].lo;',
+            'n := c [ 1 ] . lo;',
+            'n := k . lo;',
+            'n := k .lo;',
+            'n := k. lo;',
+            'n := k.(* x *)lo;',
+            'n := k.{x}lo;',
+            'IF c[1].lo > c[2].hi AND k.lo = c[i].hi THEN n := 1; END_IF',
+            'CASE c[i].lo OF 1: c[1].hi := 2; k.lo := 3; 2: n := c[2].lo; END_CASE',
+            'CASE n OF E.A, E.sub.B: c[1].lo := 2; E.C: k.hi := 3; END_CASE',
+            'FOR i := c[1].lo TO c[2].hi BY k.lo DO n := n + c[i].lo; END_FOR',
+            'WHILE c[n].lo <> 0 DO n := n + 1; END_WHILE',
+            'REPEAT n := c[n].lo; UNTIL c[n].hi = 0 END_REPEAT',
+            'n := fn(c[1].lo, k.hi, o => c[2].hi);',
+            'lib.fn(a := c[1].lo, o => k.hi);',
+            'n := lib.sub.fn(c[1].lo);',
+            'n := -c[1].lo ** 2;',
+            'b := NOT c[1].flag;'):
+        warns, rc = check_program(_PATH_PRG % body)
+        assert not _syntax_errors(warns), (body, _syntax_errors(warns))
+        with DumpManager('stdin.dump.json'):
+            pass
+
+
+def test_field_names_are_not_keywords():
+    """An identifier after `.` is a field name even if it spells a keyword."""
+    for f in ('single', 'on', 'at', 'to', 'by', 'of', 'type', 'task', 'int',
+              'time', 'date', 'string', 'true', 'FALSE', 'if', 'end_if',
+              'mod', 'not', 'and', 'ref', 'null', 'var', 'exit', 'return'):
+        for body in (f'b := k.{f};', f'k.{f} := b;', f'b := c[1].{f};',
+                     f'c[i].{f} := b;', f'b := c[1].x.{f}.y;'):
+            warns, rc = check_program(_PATH_PRG % body)
+            assert not _syntax_errors(warns), (body, _syntax_errors(warns))
+            with DumpManager('stdin.dump.json'):
+                pass
+
+
+def test_bit_access():
+    """`v.5` and `v.%X5` address a bit of a variable (IEC 61131-3 Table 16)."""
+    for body in ('b := w.3;', 'w.4 := b;', 'b := w.%X5;', 'w.%X6 := TRUE;',
+                 'b := w.%X0 AND b;', 'b := k.flags.7;', 'b := k.flags.%X8;',
+                 'b := c[1].flags.9;', 'c[1].flags.%X10 := b;',
+                 'b := c[1].%X1;', 'IF w.0 OR w.%X1 THEN n := 1; END_IF'):
+        warns, rc = check_program(_PATH_PRG % body)
+        assert not _syntax_errors(warns), (body, _syntax_errors(warns))
+        with DumpManager('stdin.dump.json'):
+            pass
+
+
+def test_dot_neighbours():
+    """Splitting identifiers at `.` must not disturb ranges and literals."""
+    warns, rc = check_program(
+        """
+        TYPE R : INT (0..10); END_TYPE
+        PROGRAM p
+        VAR a : ARRAY[1..2] OF REAL; r : REAL := 1.5; q : INT (0..9);
+        d : TIME := T#1.5s; m AT %MW10.3 : WORD; n : INT; END_VAR
+        r := 2.25 + a[1] * 1.0e3;
+        d := T#2h_3.5m;
+        %MW10.3 := 16#FF;
+        CASE n OF 1..5: n := 0; 6, 7..9: n := 1; END_CASE;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
+def test_malformed_paths():
+    for src, tok in (
+            ('n := @.lo;', '.'),
+            ('n := k.@;', ';'),
+            ('n := k@..lo;', '..'),
+            ('n := k.lo.@;', ';'),
+            ('n := c[1]@..lo;', '..'),
+            ('n := c[1].@[2];', '['),
+            ('n := c[1].@;', ';'),
+            ('n := c[1].lo.@[1];', '['),
+            ('n := 1.5@.lo;', '.'),
+            ('k. @:= 1;', ':='),
+            ('c[1]. @:= 1;', ':='),
+            ('fn(k.lo @:= 1);', ':='),
+            ('n := k.@+ 1;', '+')):
+        src = _PATH_PRG % src
+        col = src.index('@') + 1
+        src = src.replace('@', '')
+        warns, rc = check_program(src)
+        e = _syntax_errors(warns)
+        assert rc == 1, src
+        assert len(e) == 1 and e[0].id == 'ParserError', (src, warns)
+        assert src[col - 1:].startswith(tok)
+        assert e[0].column == col, (src, e[0].column, col)
+        with DumpManager('stdin.dump.json'):
+            pass
+
+
+def test_declared_names_are_plain_identifiers():
+    for src in (
+            'PROGRAM p VAR a.b : INT; END_VAR END_PROGRAM',
+            'PROGRAM p.q VAR a : INT; END_VAR END_PROGRAM',
+            'TYPE S : STRUCT a.b : INT; END_STRUCT; END_TYPE',
+            'TYPE S.T : INT; END_TYPE',
+            'FUNCTION f.g : INT VAR a : INT; END_VAR END_FUNCTION'):
+        warns, rc = check_program(src)
+        e = _syntax_errors(warns)
+        assert rc == 1 and len(e) == 1 and e[0].id == 'ParserError', (src, warns)
+        with DumpManager('stdin.dump.json'):
+            pass
+
+
+def test_qualified_names():
+    """Type, POU and enum names may be qualified with `.`."""
+    warns, rc = check_program(
+        """
+        PROGRAM p
+        VAR a : lib.Cell; b : ARRAY[1..2] OF lib.sub.Cell; e : lib.Mode := lib.Mode#RUN; n : INT; END_VAR
+        n := lib.sub.fn(1);
+        lib.fb(x := n);
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    with DumpManager('stdin.dump.json'):
+        pass

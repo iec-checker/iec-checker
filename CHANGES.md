@@ -57,6 +57,7 @@
 - Lexer: skip a UTF-8 byte order mark; report unexpected non-ASCII characters whole, and escape invalid UTF-8 bytes (e.g. Latin-1 sources) in diagnostics so `-o json` output is always valid UTF-8
 - Lexer: accept the `STRING#` literal prefix in any case
 - Parser: accept subrange specifications in variable declarations (`r : INT (0..10) := 5;`)
+- Lexer/Parser: lex `.` as a separate token instead of as a part of identifiers. Field access after a subscript (`a[i].f`, `m[i, j].f.g[k].h`), bit access (`w.%X0`, `w.5`) and whitespace or comments around `.` are accepted; field names that spell a keyword (`x.single`) stay identifiers. Malformed paths (`s..f`, `s.`), qualified names in declarations (`a.b : INT;`) and qualified formal parameter names (`f(s.x := 1)`) are rejected
 
 ## 0.4.0 (2022-02-26)
 

@@ -80,7 +80,7 @@ let parser_error_message (lexbuf : Lexing.lexbuf) =
 
 let parse_with_error ?(origin=SrcNone) (lexbuf: Lexing.lexbuf) : parse_results =
   let tokinfo lexbuf = TI.create lexbuf in
-  let l = Lexer.initial tokinfo in
+  let l = Lexer.token tokinfo in
   try (Parser.main l lexbuf), [] with
   | Lexer.LexingError msg ->
     let ctx = snippet_from_lexbuf origin lexbuf in
