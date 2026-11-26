@@ -8,6 +8,8 @@
 
   exception LexingError of string
 
+  let last_dir_var = ref ""
+
   (* [int_of_string] wraps a based literal between [max_int] and
      [2 * max_int + 1] to a negative value instead of failing. *)
   let int_of_literal ?(prefix = "") ?lit digits =
@@ -433,7 +435,20 @@ rule initial tokinfo =
   | "(*"             { comment (initial tokinfo) 1 lexbuf }
   | "/*"             { c_comment (initial tokinfo) 1 lexbuf }
   | "//"             { singleline_comment (initial tokinfo) lexbuf }
-  | "%"              { let ti = tokinfo lexbuf in direct_variable (Syntax.DirVar.create ti) ti lexbuf }
+  | "%"
+  {
+    let start_p = lexbuf.Lexing.lex_start_p in
+    let ti = tokinfo lexbuf in
+    match direct_variable (Syntax.DirVar.create ti) ti lexbuf with
+    | T_DIR_VAR var as t ->
+      (* [direct_variable] backs up over the character after the address, which
+         leaves the token empty and positioned after the address: point it
+         back at the '%' and keep its text for parser error messages. *)
+      lexbuf.Lexing.lex_start_p <- start_p;
+      last_dir_var := Syntax.DirVar.to_string var;
+      t
+    | t -> t
+  }
   | string_prefix '\'' { let ti = tokinfo lexbuf in sstring_literal (Buffer.create 19) ti lexbuf }
   | '\''             { let ti = tokinfo lexbuf in sstring_literal (Buffer.create 19) ti lexbuf }
   | string_prefix '"'  { let ti = tokinfo lexbuf in dstring_literal (Buffer.create 19) ti lexbuf }

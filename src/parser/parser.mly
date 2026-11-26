@@ -1868,6 +1868,11 @@ let primary_expr :=
     let ti = Syntax.stmt_get_ti fc in
     Syntax.ExprFuncCall(ti, fc)
   }
+  | dv = direct_variable;
+  {
+    let v = mk_var_use_dir dv in
+    Syntax.ExprVariable(Syntax.VarUse.get_ti v, v)
+  }
   (* | ref_value {  } *)
   | T_LPAREN; ~ = expression; T_RPAREN; <>
 

@@ -72,6 +72,10 @@ let snippet_from_lexbuf origin (lexbuf : Lexing.lexbuf) =
 
 let parser_error_message (lexbuf : Lexing.lexbuf) =
   let tok = Lexing.lexeme lexbuf in
+  let tok =
+    if String.is_empty tok && lexbuf.lex_start_p.pos_cnum < lexbuf.lex_curr_p.pos_cnum
+    then !Lexer.last_dir_var else tok
+  in
   let tok_desc =
     if String.is_empty tok then "end of input"
     else Printf.sprintf "`%s`" tok

@@ -87,6 +87,7 @@
 - CLI: `-i xml` no longer prints the source reconstructed from the XML to stdout, which made `-o json` output invalid JSON
 - Lexer: accept `/* ... */` comments (3rd edition); they nest like `(* ... *)`
 - Parser: `MOD`, `AND`, `OR` and `XOR` can be called as functions (`MOD(i + 1, 128)`), as the standard functions of tables 24 and 26
+- Parser: direct variables can be read in expressions (`r := %IW3 + 1;`, `IF %IX0.0 THEN`); only assignments to them parsed. A misplaced direct variable is named in the parser error, which said `unexpected token end of input` and pointed after the address
 
 ## 0.4.0 (2022-02-26)
 

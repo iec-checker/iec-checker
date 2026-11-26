@@ -1518,3 +1518,31 @@ def test_operator_named_function_calls():
     assert [len(ps) for ps in _find_calls(d, 'XOR')] == [2]
     ops = [n[3][0] for n in _find_stmts(d, 'Bin') if n[3][0] in ('MOD', 'AND')]
     assert sorted(ops) == ['AND', 'MOD'], ops
+
+
+def test_direct_variable_read_in_expression():
+    """`primary_expression ::= ... | variable` and `variable ::=
+    direct_variable | symbolic_variable` (IEC 61131-3, B.3.1, B.1.4)."""
+    src = """PROGRAM p
+    VAR r : INT := 0; b : BOOL := FALSE; END_VAR
+    r := %IW3 + 1;
+    b := %IX0.1 AND (%MW10.3 > 0);
+    %QW1 := r;
+    END_PROGRAM
+    """
+    warns, rc = check_program(src)
+    assert rc == 0 and not _syntax_errors(warns), warns
+    n1 = sorted((w.linenr, w.msg) for w in filter_warns(warns, 'PLCOPEN-N1'))
+    assert n1 == [(3, 'Avoid hardcoded physical address %IW3 in code'),
+                  (4, 'Avoid hardcoded physical address %IX0.1 in code'),
+                  (4, 'Avoid hardcoded physical address %MW10.3 in code'),
+                  (5, 'Avoid hardcoded physical address %QW1 in code')], n1
+    d = _dump_of(src)
+    assert len(list(_find_stmts(d['programs'][0]['statements'], 'DirVar'))) == 4
+
+
+def test_misplaced_direct_variable_is_named_in_the_error():
+    src = "PROGRAM p VAR x : %IW3; END_VAR END_PROGRAM"
+    warns, rc = check_program(src)
+    assert [(w.id, w.column, w.msg) for w in warns] == [
+        ('ParserError', src.index('%') + 1, 'unexpected token `%IW3`')], warns
