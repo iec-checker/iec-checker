@@ -29,6 +29,38 @@ def test_cp3():
         pass
 
 
+def test_cp3_no_initializer_allowed():
+    """`VAR_IN_OUT` and `VAR_EXTERNAL` declarations take no initial value
+    (IEC 61131-3, B.1.4.3): the caller or the `VAR_GLOBAL` supplies it."""
+    warns, rc = check_program(
+        """
+        CONFIGURATION plant
+          VAR_GLOBAL limit : INT := 100; END_VAR
+          RESOURCE r ON PLC
+            TASK t(INTERVAL := T#10ms, PRIORITY := 1);
+            PROGRAM main WITH t : p;
+          END_RESOURCE
+        END_CONFIGURATION
+        FUNCTION_BLOCK clamp
+        VAR_IN_OUT v : INT; END_VAR
+        VAR_EXTERNAL limit : INT; END_VAR
+        VAR scratch : INT; END_VAR
+        scratch := v;
+        IF scratch > limit THEN v := limit; END_IF;
+        END_FUNCTION_BLOCK
+        PROGRAM p
+        VAR x : INT := 0; c : clamp; END_VAR
+        c(v := x);
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert rc == 0, warns
+    msgs = sorted(w.msg for w in filter_warns(warns, 'PLCOPEN-CP3'))
+    assert msgs == ['Variable C shall be initialized before being used',
+                    'Variable SCRATCH shall be initialized before being used'], msgs
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
 def test_cp6():
     f = 'st/plcopen-cp6.st'
     fdump = f'{f}.dump.json'

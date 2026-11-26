@@ -79,6 +79,7 @@
 - Parser: accept functions without a result type (3rd edition); their `return_ty` is `null` in dumps
 - Lexer: an integer above 62 bits (`16#FFFFFFFFFFFFFFFF`) is a `LexingError`; it crashed the checker, or, for a based literal up to 63 bits, was silently wrapped to a negative value
 - PLCOPEN-N5: a `VAR_EXTERNAL` declaration is no longer reported as a local shadowing its own global
+- PLCOPEN-CP3: `VAR_IN_OUT` and `VAR_EXTERNAL` declarations are no longer reported; the standard allows no initializer there
 
 ## 0.4.0 (2022-02-26)
 
