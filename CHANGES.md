@@ -81,6 +81,7 @@
 - PLCOPEN-N5: a `VAR_EXTERNAL` declaration is no longer reported as a local shadowing its own global
 - PLCOPEN-CP3: `VAR_IN_OUT` and `VAR_EXTERNAL` declarations are no longer reported; the standard allows no initializer there
 - UnusedVariable: an FB instance that is only invoked (`c(inc := 2);`) and a variable read inside a nested call (`ABS(ABS(x))`) are no longer reported as unused
+- PLCOPEN-CP4: two variables at the same address are reported; addresses of different memory areas (`%IW0`, `%QW1`) are no longer compared
 
 ## 0.4.0 (2022-02-26)
 

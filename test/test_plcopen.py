@@ -61,6 +61,33 @@ def test_cp3_no_initializer_allowed():
         pass
 
 
+def test_cp4_same_address_and_memory_areas():
+    """Two variables at one address overlap; addresses in different memory
+    areas (`%I`, `%Q`, `%M`) never do."""
+    warns, rc = check_program(
+        """PROGRAM p
+        VAR
+          a AT %MW10 : INT;
+          b AT %MW10 : INT;
+          sw AT %IW0 : INT;
+          lamp AT %QW1 : INT;
+          lo AT %MW20 : INT;
+          hi AT %MW21 : INT;
+          flag AT %IX4.2 : BOOL;
+          same AT %IX4.2 : BOOL;
+        END_VAR
+        a := b + sw + lo + hi;
+        lamp := a;
+        same := flag;
+        END_PROGRAM
+        """)
+    assert rc == 0, warns
+    lines = sorted(w.linenr for w in filter_warns(warns, 'PLCOPEN-CP4'))
+    assert lines == [3, 4, 7, 8, 9, 10], lines
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
 def test_cp6():
     f = 'st/plcopen-cp6.st'
     fdump = f'{f}.dump.json'

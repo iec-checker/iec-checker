@@ -37,46 +37,44 @@ let get_ty_size = function
   | S.DWORD -> 4
   | S.LWORD -> 8
 
-(** Find direct variable declared in this [elem] which address overlaps with [dirvar] with size [size]. *)
+(** Find a direct variable declared in [elem], other than [orig_decl], whose
+    address in the same memory area overlaps [orig_dir_var] with size [size]. *)
 (* FIXME: This is horrible slow to call it on each iteration. I have no idea how to implement the cache. *)
-let find_overlapping_var elem orig_dir_var size =
-  (* get the path of the input dirvar *)
+let find_overlapping_var elem orig_decl orig_dir_var size =
   let orig_path = S.DirVar.get_path orig_dir_var in
-  if List.is_empty orig_path then
+  let orig_loc = S.DirVar.get_loc orig_dir_var in
+  if List.is_empty orig_path || Option.is_none orig_loc then
     None
   else begin
-    let orig_last_path_num = List.reduce_exn ~f:(fun _ y -> y) orig_path in
+    let orig_last_path_num = List.last_exn orig_path in
     AU.get_var_decls elem
     |> List.fold_left
       ~init:None
       ~f:(fun acc var_decl -> begin
             match acc with
             | Some acc -> Some acc
+            | None when phys_equal var_decl orig_decl -> None
             | None -> begin
-                match (S.VarDecl.get_located_at var_decl) with
-                | Some dir_var -> begin
-                    (* should have location *)
-                    match S.DirVar.get_loc dir_var with
-                    | Some _ -> begin
-                        (* should have path *)
-                        let path = S.DirVar.get_path dir_var in
-                        if (List.is_empty path ||
-                            not @@ phys_equal (List.length path) (List.length orig_path) ||
-                            not @@ List.equal Int.equal
-                              (List.take orig_path ((List.length orig_path) - 1))
-                              (List.take path ((List.length path) - 1))) then
-                          acc
-                        else begin
-                          (* compare paths *)
-                          let last_path_num = List.reduce_exn ~f:(fun _ y -> y) path in
-                          if (last_path_num < orig_last_path_num && last_path_num + size > orig_last_path_num) || (last_path_num > orig_last_path_num && last_path_num < orig_last_path_num + size) then  Some dir_var
-                          else
-                            acc
-                        end
-                      end
-                    | None -> acc
+                match S.VarDecl.get_located_at var_decl with
+                | Some dir_var when Poly.equal (S.DirVar.get_loc dir_var) orig_loc -> begin
+                    let path = S.DirVar.get_path dir_var in
+                    if (List.is_empty path ||
+                        not @@ phys_equal (List.length path) (List.length orig_path) ||
+                        not @@ List.equal Int.equal
+                          (List.take orig_path ((List.length orig_path) - 1))
+                          (List.take path ((List.length path) - 1))) then
+                      acc
+                    else begin
+                      let last_path_num = List.last_exn path in
+                      if last_path_num = orig_last_path_num ||
+                         (last_path_num < orig_last_path_num && last_path_num + size > orig_last_path_num) ||
+                         (last_path_num > orig_last_path_num && last_path_num < orig_last_path_num + size) then
+                        Some dir_var
+                      else
+                        acc
+                    end
                   end
-                | None -> acc
+                | _ -> acc
               end
           end)
   end
@@ -93,7 +91,7 @@ let check_elem elem =
                   match S.VarDecl.get_located_at decl with
                   | Some dir_var -> begin
                       let size = get_ty_size elem_spec in
-                      match find_overlapping_var elem dir_var size with
+                      match find_overlapping_var elem decl dir_var size with
                       | Some overlapped_dir_var -> begin
                           let ti = S.VarDecl.get_var_ti decl in
                           let msg =
