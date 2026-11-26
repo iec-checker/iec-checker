@@ -69,6 +69,7 @@
 - Parser: keep the `SINGLE`, `INTERVAL` and `PRIORITY` values of a `TASK` in the AST and the JSON dump; they were always `null`
 - Parser: reject a `CASE` arm without labels (`: y := 1;`); a missing `;` before a negative label (`y := a` then `-1: ...`) is a syntax error instead of a silent `y := a - 1`
 - `PLCOPEN-CP8`, `PLCOPEN-CP28`: report `<>` comparisons, which were never reported; report each comparison once instead of once per enclosing statement; find comparisons nested in other expressions and call arguments (`(r = 1.5) AND b`, `MOVE(t = T#1s)`)
+- Parser: accept `STRING(n)` and `WSTRING(n)` as CODESYS and TwinCAT write the string length (standard: `STRING[n]`); listed on the Standard Extensions page
 
 ## 0.4.0 (2022-02-26)
 

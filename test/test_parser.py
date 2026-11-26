@@ -1238,3 +1238,27 @@ def test_case_label_list_not_empty():
         assert rc == 1 and len(e) == 1 and e[0].id == 'ParserError', (body, warns)
         with DumpManager('stdin.dump.json'):
             pass
+
+
+def test_string_length_in_parentheses():
+    """`STRING(n)`, as CODESYS and TwinCAT write it, is `STRING[n]`."""
+    p = """
+        TYPE Name : STRING[20]; Rec : STRUCT tag : WSTRING[8]; END_STRUCT; END_TYPE
+        FUNCTION label : STRING[16]
+        VAR_INPUT prefix : STRING[4]; END_VAR
+        label := prefix;
+        END_FUNCTION
+        PROGRAM p
+        VAR s : STRING[10] := 'abc'; w : WSTRING[5] := "hi"; d : STRING; END_VAR
+        s := label(prefix := 'x');
+        END_PROGRAM
+        """.replace('\n', '')
+    paren = re.sub(r'\b(W?STRING)\[(\d+)\]', r'\1(\2)', p)
+    assert 'STRING(20)' in paren and 'WSTRING(8)' in paren and 'STRING(16)' in paren
+    assert _no_pos(_dump_of(p)) == _no_pos(_dump_of(paren))
+    warns, rc = check_program(
+        "PROGRAM p VAR s : STRING(2) := 'abc'; END_VAR s := 'x'; END_PROGRAM")
+    assert [w.msg for w in filter_warns(warns, 'OutOfBounds')] == \
+        ['Length of initialization string literal exceeds string length (3 > 2)']
+    with DumpManager('stdin.dump.json'):
+        pass
