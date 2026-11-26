@@ -66,6 +66,7 @@
 - Parser: accept `NOT x` as a positional call argument (`SEL(NOT a, 1, 2)`); it was taken for the start of `NOT x => v`
 - Parser: build `NOT x` as logical negation (`NOT`) instead of arithmetic negation (`NEG`); visible in the JSON dump
 - Parser: accept `TASK t(SINGLE := s, INTERVAL := i, PRIORITY := p)`; the non-standard `SINGLE s, INTERVAL i` form without `:=` is rejected
+- Parser: keep the `SINGLE`, `INTERVAL` and `PRIORITY` values of a `TASK` in the AST and the JSON dump; they were always `null`
 
 ## 0.4.0 (2022-02-26)
 

@@ -1615,7 +1615,13 @@ let access_direction :=
   {  }
 
 let task_config :=
-  | T_TASK; ~ = task_name; task_init; T_SEMICOLON; <>
+  | T_TASK; t = task_name; init = task_init; T_SEMICOLON;
+  {
+    let (single, interval, priority) = init in
+    let t = Option.fold single ~init:t ~f:Syntax.Task.set_single in
+    let t = Option.fold interval ~init:t ~f:Syntax.Task.set_interval in
+    Option.fold priority ~init:t ~f:(fun t p -> Syntax.Task.set_priority t (c_get_int_exn p))
+  }
 
 let task_name :=
   | id = T_IDENTIFIER;

@@ -1191,3 +1191,26 @@ def test_task_init_all_inputs():
     assert rc == 1 and len(e) == 1 and e[0].id == 'ParserError', warns
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_task_init_values_kept():
+    d = _dump_of(
+        """
+        PROGRAM prg VAR x : INT; END_VAR x := 1; END_PROGRAM
+        CONFIGURATION c
+          VAR_GLOBAL trig : BOOL; END_VAR
+          RESOURCE r ON PLC
+            TASK t1(SINGLE := trig, INTERVAL := T#20ms, PRIORITY := 2);
+            TASK t2(SINGLE := trig, PRIORITY := 1);
+            TASK t3(INTERVAL := T#5ms, PRIORITY := 0);
+            TASK t4(PRIORITY := 3);
+            PROGRAM i1 WITH t1 : prg;
+          END_RESOURCE
+        END_CONFIGURATION
+        """.replace('\n', ''))
+    tasks = d['configurations'][0]['resources'][0]['tasks']
+    got = {t['name']: (t['single'] and t['single'][1]['loc'][1]['name'],
+                       t['interval'] and t['interval'][1][2]['ms'],
+                       t['priority']) for t in tasks}
+    assert got == {'T1': ('TRIG', 20.0, 2), 'T2': ('TRIG', None, 1),
+                   'T3': (None, 5.0, 0), 'T4': (None, None, 3)}, got
