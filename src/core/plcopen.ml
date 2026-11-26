@@ -509,7 +509,6 @@ let reconstruct_tree (pt : parse_tree) : string =
       ~init:""
       ~f:(fun acc p -> acc ^ "\n" ^ POUNode.extract_source_exn p)
   in
-  Printf.printf "%s\n" res;
   res
 
 let pull_pous i =
