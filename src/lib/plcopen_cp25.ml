@@ -43,7 +43,7 @@ let check_pou pou env =
     ~init:[]
     ~f:(fun acc expr -> begin
           match expr with
-          | S.ExprBin (ti,(S.ExprVariable (_, lhs)),(S.EQ|S.NEQ|S.ASSIGN|S.ASSIGN_REF|S.GT|S.LT|S.GE|S.LE|S.SENDTO),(S.ExprVariable (_, rhs))) -> begin
+          | S.ExprBin (ti,(S.ExprVariable (_, lhs)),(S.EQ|S.NEQ|S.ASSIGN|S.ASSIGN_REF|S.GT|S.LT|S.GE|S.LE),(S.ExprVariable (_, rhs))) -> begin
               check_assign_expr ti lhs rhs env
               |> Option.to_list
               |> List.append acc

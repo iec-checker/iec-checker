@@ -71,6 +71,7 @@
 - `PLCOPEN-CP8`, `PLCOPEN-CP28`: report `<>` comparisons, which were never reported; report each comparison once instead of once per enclosing statement; find comparisons nested in other expressions and call arguments (`(r = 1.5) AND b`, `MOVE(t = T#1s)`)
 - Parser: accept `STRING(n)` and `WSTRING(n)` as CODESYS and TwinCAT write the string length (standard: `STRING[n]`); listed on the Standard Extensions page
 - Parser: accept several `VAR_GLOBAL` sections in a `CONFIGURATION` or `RESOURCE` (e.g. `VAR_GLOBAL CONSTANT` next to `VAR_GLOBAL`), as Beremiz generates them; listed on the Standard Extensions page
+- Parser: build an output assignment `fb(Q => v)` as `Q SENDTO v`; it was `v SENDTO v`, so the output parameter was lost. `PLCOPEN-CP25` no longer compares the output parameter with a caller variable of the same name
 
 ## 0.4.0 (2022-02-26)
 

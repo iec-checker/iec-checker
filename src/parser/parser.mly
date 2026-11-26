@@ -1963,7 +1963,7 @@ let param_assign :=
     (* Source *)
     let (name, ti) = vn in
     let src_var = mk_var_use name ti in
-    let expr_var_src = Syntax.ExprVariable(ti, v) in
+    let expr_var_src = Syntax.ExprVariable(ti, src_var) in
 
     (* Destination *)
     let ti_dest = Syntax.VarUse.get_ti v in
@@ -1977,7 +1977,7 @@ let param_assign :=
     (* Source *)
     let (name, ti) = vn in
     let src_var = mk_var_use name ti in
-    let expr_var_src = Syntax.ExprVariable(ti, v) in
+    let expr_var_src = Syntax.ExprVariable(ti, src_var) in
 
     (* Destination *)
     let ti_dest = Syntax.VarUse.get_ti v in

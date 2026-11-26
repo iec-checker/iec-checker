@@ -377,3 +377,18 @@ def test_cp8_cp28_nested_comparisons(tmp_path):
     warns, rc = run_checker([str(f)])
     assert sorted(w.linenr for w in filter_warns(warns, 'PLCOPEN-CP8')) == [3, 5]
     assert sorted(w.linenr for w in filter_warns(warns, 'PLCOPEN-CP28')) == [8, 9]
+
+
+def test_cp25_ignores_output_assignment_formals():
+    """The formal output name of an FB is not a variable of the caller."""
+    warns, rc = check_program(
+        """
+        PROGRAM p
+        VAR ctr : CTU; up : BOOL; count : INT; CV : REAL; END_VAR
+        ctr(CU := up, PV := 10, CV => count);
+        CV := 1.5;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not filter_warns(warns, 'PLCOPEN-CP25'), warns
+    with DumpManager('stdin.dump.json'):
+        pass

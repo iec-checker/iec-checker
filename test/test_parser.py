@@ -1286,3 +1286,23 @@ def test_configuration_several_global_sections():
     names = lambda vs: sorted(v['var']['loc'][1]['name'] for v in vs)
     assert names(cfg['variables']) == ['LEVEL', 'LIMIT', 'RUN', 'TOTAL']
     assert names(cfg['resources'][0]['variables']) == ['COUNT', 'PERIOD']
+
+
+def test_output_assignment_source():
+    """In `fb(Q => v)` the output `Q` is sent to `v`."""
+    d = _dump_of(
+        """
+        PROGRAM p
+        VAR tm : TON; done, idle, go : BOOL; spent : TIME; END_VAR
+        tm(IN := go, PT := T#1s, Q => done, ET => spent);
+        tm(NOT Q => idle);
+        END_PROGRAM
+        """.replace('\n', ''))
+    def sendto(a):
+        e = a['stmt'][2]
+        assert e[0] == 'Bin' and e[3] == ['SENDTO'], a
+        return (a['name'], e[2][2]['loc'][1]['name'], e[4][2]['loc'][1]['name'], a['inverted'])
+    calls = list(_find_calls(d, 'TM'))
+    got = [sendto(a) for c in calls for a in c if a['stmt'][2][3] == ['SENDTO']]
+    assert got == [('Q', 'Q', 'DONE', False), ('ET', 'ET', 'SPENT', False),
+                   ('Q', 'Q', 'IDLE', True)], got
