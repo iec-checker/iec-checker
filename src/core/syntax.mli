@@ -590,7 +590,7 @@ end
 (** Function declaration *)
 type function_decl = {
   id : Function.t;
-  return_ty : iec_data_type;
+  return_ty : iec_data_type option;
   variables : VarDecl.t list;
   statements : statement list;
 }

@@ -76,6 +76,7 @@
 - Parser: accept empty `THEN`, `ELSIF`, `ELSE` branches, `CASE` arms and loop bodies (3rd edition `stmt_list`); in the CFG an empty body passes control on (an empty `REPEAT` body crashed the CFG builder)
 - Parser: accept anonymous enumerations in variable declarations (`mode : (IDLE, RUN) := IDLE;`)
 - Parser: accept `ARRAY` (with an initializer), subrange and anonymous enumeration types of STRUCT elements. In dumps, `struct_elem_ty` is now tagged: `Single`, `Subrange`, `Enum` or `Array`
+- Parser: accept functions without a result type (3rd edition); their `return_ty` is `null` in dumps
 
 ## 0.4.0 (2022-02-26)
 

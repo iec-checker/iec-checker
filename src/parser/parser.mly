@@ -1361,7 +1361,7 @@ let func_access :=
   } *)
 
 let func_decl :=
-  | T_FUNCTION; id = func_name; T_COLON; ret_ty = function_ty; vs = var_decls; body = func_body; T_END_FUNCTION;
+  | T_FUNCTION; id = func_name; ret_ty = option(preceded(T_COLON, function_ty)); vs = var_decls; body = func_body; T_END_FUNCTION;
   {
     {
       Syntax.id = id;
@@ -1370,7 +1370,7 @@ let func_decl :=
       Syntax.statements = body;
     }
   }
-  | T_FUNCTION; id = func_name; T_COLON; ret_ty = function_ty; body = func_body; T_END_FUNCTION;
+  | T_FUNCTION; id = func_name; ret_ty = option(preceded(T_COLON, function_ty)); body = func_body; T_END_FUNCTION;
   {
     {
       Syntax.id = id;

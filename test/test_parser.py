@@ -1423,3 +1423,28 @@ def test_struct_elem_types():
     warns, _ = check_program(
         "TYPE Rec : STRUCT lvl : REAL (0..1); END_STRUCT; END_TYPE")
     assert _syntax_errors(warns)
+
+
+def test_function_without_result_type():
+    """`func_decl ::= 'FUNCTION' derived_func_name [':' data_type_access] ...`:
+    the result type is optional since the 3rd edition (IEC 61131-3:2013,
+    table 19, "without result")."""
+    d = _dump_of(
+        """
+        FUNCTION clear_it
+        VAR_IN_OUT c : INT; END_VAR
+        c := 0;
+        END_FUNCTION
+        FUNCTION nothing
+        END_FUNCTION
+        FUNCTION dbl : INT
+        VAR_INPUT v : INT; END_VAR
+        dbl := v * 2;
+        END_FUNCTION
+        PROGRAM p VAR n : INT; END_VAR clear_it(c := n); nothing(); n := dbl(n); END_PROGRAM
+        """.replace('\n', ''))
+    rt = {f['id']['name']: f['return_ty'] for f in d['functions']}
+    assert rt == {'CLEAR_IT': None, 'NOTHING': None,
+                  'DBL': ['TyElementary', ['INT']]}, rt
+    warns, rc = check_program('FUNCTION f : END_FUNCTION')
+    assert rc == 1 and _syntax_errors(warns), warns
