@@ -1053,12 +1053,9 @@ let struct_decl :=
   { match overlap with Some(v) -> (true, elems) | None -> (false, elems) }
 
 let struct_elem_decl :=
-  | name = struct_elem_name; loc = option(struct_elem_loc); T_COLON; ty = struct_elem_ty; inval = optional_assign(struct_elem_init); T_SEMICOLON;
+  | name = struct_elem_name; loc = option(struct_elem_loc); T_COLON; ty_init = struct_elem_ty_init; T_SEMICOLON;
   {
-    let struct_elem_init_value  = match inval with
-      | Some (_, v) -> Some(v)
-      | None -> None
-    in
+    let (ty, struct_elem_init_value) = ty_init in
     Syntax.
     { struct_elem_name = name;
       struct_elem_loc = loc;
@@ -1066,9 +1063,25 @@ let struct_elem_decl :=
       struct_elem_init_value; }
   }
 
-(* Helper rule for [struct_elem_decl] *)
+let struct_elem_ty_init :=
+  | ty = struct_elem_ty; inval = optional_assign(struct_elem_init);
+  { (ty, Option.map inval ~f:snd) }
+  | spec = array_spec; inval = optional_assign(array_init);
+  {
+    let (subranges, ty) = spec in
+    (Syntax.StructElemTyArray(subranges, ty), Option.map inval ~f:(fun v -> Syntax.StructElemInvalArray(v)))
+  }
+
 let struct_elem_ty :=
-  | ~ = simple_spec; <>
+  | ~ = simple_spec; <Syntax.StructElemTySingle>
+  | ty = int_type_name; T_LPAREN; s = subrange; T_RPAREN;
+  { let (_, lb, ub) = s in Syntax.StructElemTySubrange(ty, lb, ub) }
+  | T_LPAREN; values = separated_nonempty_list(T_COMMA, T_IDENTIFIER); T_RPAREN;
+  {
+    Syntax.StructElemTyEnum(List.map
+      values
+      ~f:(fun (elem_name, _) -> Syntax.{ enum_type_name = None; elem_name; initial_value = None }))
+  }
 
 (* Helper rule for struct_elem_decl. *)
 let struct_elem_loc :=

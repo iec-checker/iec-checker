@@ -1375,3 +1375,51 @@ def test_inline_enum_var_decl():
         return ([e['elem_name'] for e in t[2]], t[3] and t[3]['elem_name'], v['was_init'])
     assert enum(vs['MODE']) == (['IDLE', 'RUN', 'STOP'], 'RUN', True)
     assert enum(vs['A']) == enum(vs['B']) == (['OPEN', 'CLOSED'], None, False)
+
+
+def _no_ti(node):
+    if isinstance(node, list):
+        return [_no_ti(c) for c in node
+                if not (isinstance(c, dict) and 'linenr' in c)]
+    if isinstance(node, dict):
+        return {k: _no_ti(v) for k, v in node.items()}
+    return node
+
+
+def test_struct_elem_types():
+    """`structure_element_declaration ::= structure_element_name ':'
+    (simple_spec_init | subrange_spec_init | enumerated_spec_init
+    | array_spec_init | initialized_structure)` (IEC 61131-3, B.1.3.3)."""
+    d = _dump_of(
+        """
+        TYPE
+          Rec : STRUCT
+            n : INT := 5;
+            buf : ARRAY [0..2] OF INT := [1, 2(7)];
+            grid : ARRAY [1..2, 1..3] OF REAL;
+            lvl : SINT (-5..5) := 0;
+            st : (OPEN, CLOSED) := CLOSED;
+          END_STRUCT;
+        END_TYPE
+        PROGRAM p VAR r : Rec; END_VAR r.n := 1; END_PROGRAM
+        """.replace('\n', ''))
+    t = next(t for t in d['types'] if t['name'] == 'REC')
+    es = {e['struct_elem_name']: e for e in t['elem_specs']}
+    def tv(n):
+        return (_no_ti(es[n]['struct_elem_ty']),
+                _no_ti(es[n]['struct_elem_init_value']))
+    assert tv('N') == (['Single', ['DTySpecElementary', ['INT']]],
+                       ['InvalConstant', ['Integer', None, 5]])
+    ty, iv = tv('BUF')
+    assert ty == ['Array', [{'arr_lower': 0, 'arr_upper': 2}], ['TyElementary', ['INT']]]
+    assert iv[0] == 'InvalArray' and [c[-1] for c in iv[1]] == [1, 7, 7]
+    assert tv('GRID')[0][1] == [{'arr_lower': 1, 'arr_upper': 2},
+                                {'arr_lower': 1, 'arr_upper': 3}]
+    assert tv('LVL') == (['Subrange', [['SINT'], -5, 5]],
+                         ['InvalConstant', ['Integer', None, 0]])
+    ty, iv = tv('ST')
+    assert ty[0] == 'Enum' and [e['elem_name'] for e in ty[1]] == ['OPEN', 'CLOSED']
+    assert iv == ['InvalConstant', ['EnumValue', 'CLOSED']]
+    warns, _ = check_program(
+        "TYPE Rec : STRUCT lvl : REAL (0..1); END_STRUCT; END_TYPE")
+    assert _syntax_errors(warns)

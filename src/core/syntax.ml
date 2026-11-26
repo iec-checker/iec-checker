@@ -469,15 +469,23 @@ and arr_inval = constant list [@@deriving to_yojson]
 and struct_elem_spec = {
   struct_elem_name: string;
   struct_elem_loc: DirVar.t option;
-  struct_elem_ty: single_element_ty_spec;
+  struct_elem_ty: struct_elem_ty_spec;
   struct_elem_init_value: struct_elem_init_value_spec option; (** initial values *)
 } [@@deriving to_yojson]
+
+(** Type of a struct element *)
+and struct_elem_ty_spec =
+  | StructElemTySingle of   single_element_ty_spec                    [@name "Single"]
+  | StructElemTySubrange of subrange_ty_spec                          [@name "Subrange"]
+  | StructElemTyEnum of     enum_element_spec list                    [@name "Enum"]
+  | StructElemTyArray of    arr_subrange list * iec_data_type         [@name "Array"]
+[@@deriving to_yojson]
 
 (** Initial value of a struct element *)
 and struct_elem_init_value_spec =
   | StructElemInvalConstant of constant                  [@name "InvalConstant"]
   | StructElemInvalEnum of     enum_element_spec         [@name "InvalEnum"]
-  (* | StructElemInvalArray of string                    [@name "InvalArray"] *)
+  | StructElemInvalArray of    arr_inval                 [@name "InvalArray"]
   | StructElemInvalStruct of   string (** struct name *) [@name "InvalStruct"]
 [@@deriving to_yojson]
 

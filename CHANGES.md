@@ -75,6 +75,7 @@
 - CLI: `-` reads the whole program from stdin; only its first line was read, so a multi-line program failed and the rest of the input was ignored. `--interactive` still reads one line
 - Parser: accept empty `THEN`, `ELSIF`, `ELSE` branches, `CASE` arms and loop bodies (3rd edition `stmt_list`); in the CFG an empty body passes control on (an empty `REPEAT` body crashed the CFG builder)
 - Parser: accept anonymous enumerations in variable declarations (`mode : (IDLE, RUN) := IDLE;`)
+- Parser: accept `ARRAY` (with an initializer), subrange and anonymous enumeration types of STRUCT elements. In dumps, `struct_elem_ty` is now tagged: `Single`, `Subrange`, `Enum` or `Array`
 
 ## 0.4.0 (2022-02-26)
 
