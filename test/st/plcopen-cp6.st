@@ -21,7 +21,7 @@ END_PROGRAM
 
 CLASS test1
   VAR_EXTERNAL
-    x1 : INT;
+    x1 : INT; (* PLCOPEN-CP6 *)
   END_VAR
 
   METHOD PRIVATE count
