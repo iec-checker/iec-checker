@@ -1521,21 +1521,22 @@ let access_spec :=
 
 (* {{{ Table 47 -- Program definition *)
 let prog_decl :=
-  | T_PROGRAM; n = prog_type_name; var_decls_opt = option(var_decls); ss = fb_body; T_END_PROGRAM;
+  | T_PROGRAM; id = prog_type_name; var_decls_opt = option(var_decls); ss = fb_body; T_END_PROGRAM;
   {
     let vds = match var_decls_opt with
       | Some v -> v
       | None -> []
     in
+    let (n, ti) = id in
     Syntax.{ is_retain = false;
       name = n;
+      ti;
       variables = vds;
       statements = ss }
   }
 
 let prog_type_name :=
-  | id = T_IDENTIFIER;
-  { let name, _ = id in name }
+  | ~ = T_IDENTIFIER; <>
 
 let prog_type_access :=
   | id = qname;

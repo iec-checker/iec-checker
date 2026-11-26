@@ -914,6 +914,7 @@ type fb_decl = {
 type program_decl = {
   is_retain : bool;
   name : string;
+  ti : TI.t;
   variables : VarDecl.t list;
   statements : statement list;
 }

@@ -1,4 +1,5 @@
 """Tests for PLCOpen inspections."""
+import re
 import sys
 import os
 from collections import Counter
@@ -263,6 +264,33 @@ def test_cp9():
     assert rc == 0
     assert len(filter_warns(warns, 'PLCOPEN-CP9')) == 2
     with DumpManager(fdump):
+        pass
+
+
+def test_cp9_reports_at_the_pou():
+    """CP9 names the POU and reports at its name, not at `0:0`."""
+    chain = 'IF n > 0 THEN n := 1;' + ''.join(
+        f' ELSIF n > {i} THEN n := {i + 1};' for i in range(1, 20)) + ' ELSE n := 0; END_IF;'
+    warns, rc = check_program(
+        f"""FUNCTION_BLOCK Ladder
+        VAR n : INT := 0; END_VAR
+        {chain}
+        END_FUNCTION_BLOCK
+        PROGRAM Main
+        VAR n : INT := 0; END_VAR
+        {chain}
+        END_PROGRAM
+        """)
+    assert rc == 0, warns
+    got = sorted((w.linenr, re.sub(r'\d+', 'N', w.msg))
+                 for w in filter_warns(warns, 'PLCOPEN-CP9'))
+    assert got == [
+        (1, 'Code of function block LADDER is too complex (N McCabe complexity)'),
+        (1, 'Code of function block LADDER is too complex (N statements)'),
+        (5, 'Code of program MAIN is too complex (N McCabe complexity)'),
+        (5, 'Code of program MAIN is too complex (N statements)'),
+    ], got
+    with DumpManager('stdin.dump.json'):
         pass
 
 

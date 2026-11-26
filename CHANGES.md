@@ -83,6 +83,7 @@
 - UnusedVariable: an FB instance that is only invoked (`c(inc := 2);`) and a variable read inside a nested call (`ABS(ABS(x))`) are no longer reported as unused
 - PLCOPEN-CP4: two variables at the same address are reported; addresses of different memory areas (`%IW0`, `%QW1`) are no longer compared
 - Warnings name direct variables in the standard order, location prefix first: `%IW0`, was `%WI0` (PLCOPEN-CP1, CP4, N1)
+- PLCOPEN-CP9: warnings are reported at the POU name and name the POU (`Code of program MAIN is too complex (...)`); they were all at `0:0`. Dumps of programs carry the program name's `ti`
 
 ## 0.4.0 (2022-02-26)
 
