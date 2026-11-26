@@ -1873,7 +1873,8 @@ let primary_expr :=
     let v = mk_var_use_dir dv in
     Syntax.ExprVariable(Syntax.VarUse.get_ti v, v)
   }
-  (* | ref_value {  } *)
+  | ~ = ref_value_expr; <>
+  | ~ = ref_deref; <>
   | T_LPAREN; ~ = expression; T_RPAREN; <>
 
 (* Helper rule for primary_expr: "use" occurrence of enum element. Since we are not
@@ -1947,8 +1948,12 @@ let assign_stmt :=
     let eti = Syntax.expr_get_ti e in
     Syntax.StmExpr(vti, Syntax.ExprBin(eti, Syntax.ExprVariable(vti, v), Syntax.ASSIGN, e))
   }
+  | d = ref_deref; T_ASSIGN; e = expression;
+  {
+    let ti = Syntax.expr_get_ti d in
+    Syntax.StmExpr(ti, Syntax.ExprBin(Syntax.expr_get_ti e, d, Syntax.ASSIGN, e))
+  }
   | ~ = assignment_attempt; <>
-  (* | ~ = ref_assign; <> *)
 
 let assignment_attempt :=
   | v = symbolic_variable; T_ASSIGN_REF; rhs_expr = assignment_attempt_rhs;
@@ -1962,6 +1967,9 @@ let assignment_attempt_rhs :=
   | v = symbolic_variable;
   { Syntax.ExprVariable(Syntax.SymVar.get_ti v, mk_var_use_sym v) }
   | ~ = ref_deref; <>
+  | ~ = ref_value_expr; <>
+
+let ref_value_expr :=
   | ref_val = ref_value;
   {
     let ti = match ref_val with

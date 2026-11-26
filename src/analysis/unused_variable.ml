@@ -16,6 +16,7 @@ let check_pou elem =
     let vars =
       List.filter_map exprs ~f:(function
           | S.ExprVariable (_, v) -> Some (S.VarUse.get_name v)
+          | S.ExprConstant (_, S.CPointer (_, S.RefSymVar sv)) -> Some (S.SymVar.get_name sv)
           | _ -> None)
     and invoked =
       List.filter_map exprs ~f:(function S.ExprFuncCall (_, s) -> Some s | _ -> None)
@@ -23,8 +24,14 @@ let check_pou elem =
       |> List.filter_map ~f:(function
           | S.StmFuncCall (_, f, _) -> Some (S.Function.get_name f)
           | _ -> None)
+    and ref_inits =
+      AU.get_var_decls elem
+      |> List.filter_map ~f:(fun d ->
+          match S.VarDecl.get_ty_spec d with
+          | Some (S.DTyDeclRefType (_, _, Some (S.RefSymVar sv))) -> Some (S.SymVar.get_name sv)
+          | _ -> None)
     in
-    vars @ invoked
+    vars @ invoked @ ref_inits
   in
 
   let decl_set = StringSet.of_list (get_decl_var_names ())

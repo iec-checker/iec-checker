@@ -1546,3 +1546,34 @@ def test_misplaced_direct_variable_is_named_in_the_error():
     warns, rc = check_program(src)
     assert [(w.id, w.column, w.msg) for w in warns] == [
         ('ParserError', src.index('%') + 1, 'unexpected token `%IW3`')], warns
+
+
+def test_references_in_expressions_and_assignments():
+    """3rd edition references: `REF()`, `NULL` and `^` in expressions, and
+    `r^ :=` as an assignment, not only with `?=`."""
+    src = """FUNCTION twice : INT VAR_INPUT v : INT; END_VAR twice := v * 2; END_FUNCTION
+    PROGRAM p
+    VAR
+      x : INT := 0; y : INT := 0; spare : INT;
+      r : REF_TO INT; s : REF_TO REF_TO INT;
+      z : INT := 0; q : REF_TO INT := REF(z);
+    END_VAR
+    r := REF(x);
+    r^ := 1;
+    y := r^ + twice(r^);
+    IF r = NULL THEN r := NULL; END_IF;
+    WHILE r^ < 10 DO r^ := r^ + 1; END_WHILE;
+    y := s^^ + q^;
+    END_PROGRAM
+    """
+    warns, rc = check_program(src)
+    assert rc == 0 and not _syntax_errors(warns), warns
+    unused = [w.msg for w in filter_warns(warns, 'UnusedVariable')]
+    assert unused == ['Found unused local variable: SPARE'], unused
+    d = _dump_of(src)
+    body = d['programs'][0]['statements']
+    assert len([c for c in _find_stmts(body, 'Pointer')]) >= 3
+    derefs = [u for u in _find_stmts(body, 'Un') if u[2] == ['DEREF']]
+    assert len(derefs) >= 8, len(derefs)
+    lhs = [b for b in _find_stmts(body, 'Bin') if b[3] == ['ASSIGN'] and b[2][0] == 'Un']
+    assert len(lhs) == 2, lhs
