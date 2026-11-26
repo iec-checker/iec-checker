@@ -2051,7 +2051,7 @@ let case_selection_tail :=
   { let (body, css) = t in ([], Syntax.{ case; body = s :: body } :: css) }
 
 let case_list :=
-  | ~ = separated_list(T_COMMA, case_list_elem); <>
+  | ~ = separated_nonempty_list(T_COMMA, case_list_elem); <>
 
 let case_list_elem :=
   | specs = subrange;

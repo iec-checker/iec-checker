@@ -67,6 +67,7 @@
 - Parser: build `NOT x` as logical negation (`NOT`) instead of arithmetic negation (`NEG`); visible in the JSON dump
 - Parser: accept `TASK t(SINGLE := s, INTERVAL := i, PRIORITY := p)`; the non-standard `SINGLE s, INTERVAL i` form without `:=` is rejected
 - Parser: keep the `SINGLE`, `INTERVAL` and `PRIORITY` values of a `TASK` in the AST and the JSON dump; they were always `null`
+- Parser: reject a `CASE` arm without labels (`: y := 1;`); a missing `;` before a negative label (`y := a` then `-1: ...`) is a syntax error instead of a silent `y := a - 1`
 
 ## 0.4.0 (2022-02-26)
 

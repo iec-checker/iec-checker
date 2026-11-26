@@ -1214,3 +1214,27 @@ def test_task_init_values_kept():
                        t['priority']) for t in tasks}
     assert got == {'T1': ('TRIG', 20.0, 2), 'T2': ('TRIG', None, 1),
                    'T3': (None, 5.0, 0), 'T4': (None, None, 3)}, got
+
+
+def test_case_label_list_not_empty():
+    """`case_list ::= case_list_element {',' case_list_element}`
+    (IEC 61131-3, B.3.2.3): an arm has at least one label."""
+    d = _dump_of(
+        """
+        PROGRAM p VAR x, y, a : INT; END_VAR
+        CASE x OF
+          1: y := a;
+          -1: y := 2;
+        END_CASE;
+        END_PROGRAM
+        """.replace('\n', ''))
+    sels = list(_find_case_stmts(d))[0][3]
+    assert [len(s['case']) for s in sels] == [1, 1]
+    assert [len(s['body']) for s in sels] == [1, 1]
+    for body in (': y := 1;', '1: y := a -1: y := 2;'):
+        warns, rc = check_program(
+            f'PROGRAM p VAR x, y, a : INT; END_VAR CASE x OF {body} END_CASE; END_PROGRAM')
+        e = _syntax_errors(warns)
+        assert rc == 1 and len(e) == 1 and e[0].id == 'ParserError', (body, warns)
+        with DumpManager('stdin.dump.json'):
+            pass
