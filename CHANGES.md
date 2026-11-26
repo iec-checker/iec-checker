@@ -63,6 +63,7 @@
 - `PLCOPEN-CP26`: count writes to a field or an element of a `VAR_EXTERNAL` variable
 - `OutOfBounds`: check subscripts on reads (`x := a[9]`) and when a field access follows (`a[9].f`)
 - Parser: accept nested array initializers (`[[1, 2], [3, 4]]`, `[2([1, 2])]`); the values are flattened in row-major order
+- Parser: accept `NOT x` as a positional call argument (`SEL(NOT a, 1, 2)`); it was taken for the start of `NOT x => v`
 
 ## 0.4.0 (2022-02-26)
 

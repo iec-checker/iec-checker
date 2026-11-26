@@ -1094,3 +1094,45 @@ def test_nested_array_init_errors():
         assert rc == 1 and len(e) == 1 and e[0].id == 'ParserError', (init, warns)
         with DumpManager('stdin.dump.json'):
             pass
+
+
+def _find_calls(node, name):
+    if isinstance(node, list):
+        if len(node) == 4 and node[0] == 'FuncCall' and isinstance(node[2], dict) \
+                and node[2].get('name') == name:
+            yield node[3]
+        for c in node:
+            yield from _find_calls(c, name)
+    elif isinstance(node, dict):
+        for c in node.values():
+            yield from _find_calls(c, name)
+
+
+def test_call_positional_not_argument():
+    """`NOT x` is an expression, so it can be a positional argument
+    (IEC 61131-3, B.3.2.2); `NOT x => v` stays an inverted output."""
+    d = _dump_of(
+        """
+        FUNCTION pick : INT
+        VAR_INPUT c : BOOL; d : BOOL; END_VAR
+        pick := 1;
+        END_FUNCTION
+        PROGRAM p
+        VAR run, stop : BOOL; n : INT; tm : TON; END_VAR
+        n := SEL(NOT run, 10, 20);
+        stop := MOVE(NOT run);
+        n := pick(stop, NOT run);
+        n := pick(NOT run AND stop, stop);
+        tm(NOT Q => stop);
+        END_PROGRAM
+        """.replace('\n', ''))
+    sel = list(_find_calls(d, 'SEL'))
+    assert len(sel) == 1 and [a['name'] for a in sel[0]] == [None, None, None]
+    assert sel[0][0]['stmt'][2][0] == 'Un'
+    assert len(list(_find_calls(d, 'MOVE'))) == 1
+    picks = list(_find_calls(d, 'PICK'))
+    assert [len(a) for a in picks] == [2, 2]
+    assert picks[0][1]['stmt'][2][0] == 'Un'
+    assert picks[1][0]['stmt'][2][0] == 'Bin'
+    tm = list(_find_calls(d, 'TM'))
+    assert len(tm) == 1 and tm[0][0]['name'] == 'Q' and tm[0][0]['inverted'] is True

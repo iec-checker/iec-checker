@@ -1814,6 +1814,13 @@ let unary_expr :=
     let ti = Syntax.expr_get_ti e in
     Syntax.ExprUn(ti, op, e)
   }
+  (* Not through [unary_operator]: after `NOT x` in a call, the next token decides
+     between an expression and the output form `NOT x => v`. *)
+  | T_NOT; e = primary_expr;
+  {
+    let ti = Syntax.expr_get_ti e in
+    Syntax.ExprUn(ti, Syntax.NEG, e)
+  }
   | ~ = primary_expr; <>
 
 let primary_expr :=
@@ -2363,8 +2370,6 @@ let multiply_operator :=
 
 let unary_operator :=
   | T_MINUS;
-  { Syntax.NEG }
-  | T_NOT;
   { Syntax.NEG }
 
 optional_assign(X):
