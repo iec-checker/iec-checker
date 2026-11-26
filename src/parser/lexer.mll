@@ -431,6 +431,7 @@ rule initial tokinfo =
 
   (* {{{ Misc. *)
   | "(*"             { comment (initial tokinfo) 1 lexbuf }
+  | "/*"             { c_comment (initial tokinfo) 1 lexbuf }
   | "//"             { singleline_comment (initial tokinfo) lexbuf }
   | "%"              { let ti = tokinfo lexbuf in direct_variable (Syntax.DirVar.create ti) ti lexbuf }
   | string_prefix '\'' { let ti = tokinfo lexbuf in sstring_literal (Buffer.create 19) ti lexbuf }
@@ -447,6 +448,7 @@ and field tokinfo = parse
   | whitespace+ { field tokinfo lexbuf }
   | '\n'        { incr_linenum lexbuf; field tokinfo lexbuf }
   | "(*"        { comment (field tokinfo) 1 lexbuf }
+  | "/*"        { c_comment (field tokinfo) 1 lexbuf }
   | "//"        { singleline_comment (field tokinfo) lexbuf }
   | "{"         { pragma (field tokinfo) 1 lexbuf }
   | label as v  { T_IDENTIFIER(String.uppercase v, Tok_info.create_with_raw lexbuf v) }
@@ -562,6 +564,12 @@ and comment k depth = parse
   | '*' ')' {if depth = 1 then k lexbuf else comment k (depth-1) lexbuf}
   | '\n' {let () = new_line lexbuf in comment k depth lexbuf}
   | _ {comment k depth lexbuf}
+  | eof { raise (LexingError ("Comment is not terminated")) }
+and c_comment k depth = parse
+  | '/' '*' {c_comment k (depth + 1) lexbuf}
+  | '*' '/' {if depth = 1 then k lexbuf else c_comment k (depth-1) lexbuf}
+  | '\n' {let () = new_line lexbuf in c_comment k depth lexbuf}
+  | _ {c_comment k depth lexbuf}
   | eof { raise (LexingError ("Comment is not terminated")) }
 and singleline_comment k = parse
   | '\n'   { incr_linenum lexbuf; k lexbuf }

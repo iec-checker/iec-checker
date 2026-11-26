@@ -1473,3 +1473,27 @@ def test_integer_literal_range():
         'x := 16#3FFF_FFFF_FFFF_FFFF; y := 4611686018427387903; END_PROGRAM')
     vals = [c[-1] for c in _find_stmts(d, 'Integer')]
     assert len(vals) >= 2 and set(vals) == {4611686018427387903}, vals
+
+
+def test_c_style_block_comments():
+    """`/* ... */` comments (IEC 61131-3 3rd ed.), nested like `(* *)`,
+    also right after a `.`."""
+    src = """/* header
+       spanning lines */
+    PROGRAM p
+    VAR s : STRING; w : WORD; b : BOOL; x : INT; END_VAR
+    x := 1 /* one */ + 2; /* a /* nested */ comment */
+    (* a /* inside an ST comment *)
+    b := w./* bit */3;
+    y := 1;
+    END_PROGRAM
+    """
+    warns, rc = check_program(src)
+    errs = _syntax_errors(warns)
+    assert [(e.linenr, e.msg) for e in errs] == [], errs
+    warns, rc = check_program(src.replace("y := 1;", "y := ;"))
+    assert [(e.linenr, e.msg) for e in _syntax_errors(warns)] == [(8, "unexpected token `;`")]
+    warns, rc = check_program("PROGRAM p /* never closed\nEND_PROGRAM")
+    assert rc == 1 and [(e.id, e.msg) for e in warns] == [("LexingError", "Comment is not terminated")], warns
+    with DumpManager('stdin.dump.json'):
+        pass

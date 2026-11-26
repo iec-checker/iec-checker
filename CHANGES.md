@@ -85,6 +85,7 @@
 - Warnings name direct variables in the standard order, location prefix first: `%IW0`, was `%WI0` (PLCOPEN-CP1, CP4, N1)
 - PLCOPEN-CP9: warnings are reported at the POU name and name the POU (`Code of program MAIN is too complex (...)`); they were all at `0:0`. Dumps of programs carry the program name's `ti`
 - CLI: `-i xml` no longer prints the source reconstructed from the XML to stdout, which made `-o json` output invalid JSON
+- Lexer: accept `/* ... */` comments (3rd edition); they nest like `(* ... *)`
 
 ## 0.4.0 (2022-02-26)
 
