@@ -1863,6 +1863,11 @@ let primary_expr :=
     let ti = Syntax.stmt_get_ti fc in
     Syntax.ExprFuncCall(ti, fc)
   }
+  | fc = operator_func_call;
+  {
+    let ti = Syntax.stmt_get_ti fc in
+    Syntax.ExprFuncCall(ti, fc)
+  }
   (* | ref_value {  } *)
   | T_LPAREN; ~ = expression; T_RPAREN; <>
 
@@ -1890,6 +1895,22 @@ let qname ==
 
 let array_access :=
   | T_LBRACK; ~ = subscript_list; T_RBRACK; <>
+
+(* Standard functions whose names are also operator keywords: MOD(a, b) is a
+   call, a MOD b is the operator. *)
+let operator_func_call :=
+  | name = operator_func_name; T_LPAREN; stmts = separated_list(T_COMMA, param_assign); T_RPAREN;
+  {
+    let (n, pos) = name in
+    let ti = TI.create_at pos n in
+    Syntax.StmFuncCall(ti, Syntax.Function.create n ti, stmts)
+  }
+
+let operator_func_name :=
+  | T_MOD; { ("MOD", $endpos) }
+  | T_AND; { ("AND", $endpos) }
+  | T_OR;  { ("OR", $endpos) }
+  | T_XOR; { ("XOR", $endpos) }
 
 let func_call :=
   | f = func_access; T_LPAREN; stmts = separated_list(T_COMMA, param_assign); T_RPAREN;

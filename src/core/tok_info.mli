@@ -11,6 +11,9 @@ val create_with_raw : Lexing.lexbuf -> string -> t
 (** [create_with_raw lexbuf raw] like {!create} but also records the original
     token text in the [raw] field. *)
 
+val create_at : Lexing.position -> string -> t
+(** [create_at pos raw] like {!create_with_raw}, for a token that ends at [pos]. *)
+
 val create_dummy : unit -> t
 (** [create_dummy] Create a new dummy parse tree element *)
 

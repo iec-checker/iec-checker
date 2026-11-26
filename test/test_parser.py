@@ -1497,3 +1497,24 @@ def test_c_style_block_comments():
     assert rc == 1 and [(e.id, e.msg) for e in warns] == [("LexingError", "Comment is not terminated")], warns
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_operator_named_function_calls():
+    """MOD, AND, OR and XOR are standard functions too (IEC 61131-3, tables
+    24 and 26): `MOD(a, b)` is a call, `a MOD b` stays the operator."""
+    d = _dump_of(
+        """
+        PROGRAM p
+        VAR i : INT := 0; m, w : WORD := 0; b : BOOL := FALSE; END_VAR
+        i := MOD(i + 1, 128);
+        w := AND(w, m); w := OR(w, 16#8000); w := XOR(w, m);
+        i := MOD(MOD(i, 7), 3);
+        i := i MOD 3;
+        b := b AND (i > 0);
+        END_PROGRAM
+        """)
+    calls = {n: len(list(_find_calls(d, n))) for n in ('MOD', 'AND', 'OR', 'XOR')}
+    assert calls == {'MOD': 3, 'AND': 1, 'OR': 1, 'XOR': 1}, calls
+    assert [len(ps) for ps in _find_calls(d, 'XOR')] == [2]
+    ops = [n[3][0] for n in _find_stmts(d, 'Bin') if n[3][0] in ('MOD', 'AND')]
+    assert sorted(ops) == ['AND', 'MOD'], ops

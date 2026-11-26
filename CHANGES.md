@@ -86,6 +86,7 @@
 - PLCOPEN-CP9: warnings are reported at the POU name and name the POU (`Code of program MAIN is too complex (...)`); they were all at `0:0`. Dumps of programs carry the program name's `ti`
 - CLI: `-i xml` no longer prints the source reconstructed from the XML to stdout, which made `-o json` output invalid JSON
 - Lexer: accept `/* ... */` comments (3rd edition); they nest like `(* ... *)`
+- Parser: `MOD`, `AND`, `OR` and `XOR` can be called as functions (`MOD(i + 1, 128)`), as the standard functions of tables 24 and 26
 
 ## 0.4.0 (2022-02-26)
 

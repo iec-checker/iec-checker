@@ -18,6 +18,9 @@ let create_with_raw lexbuf raw =
   let ti = create lexbuf in
   { ti with raw }
 
+let create_at (p : Lexing.position) raw =
+  { id = next_id (); linenr = p.pos_lnum; col = p.pos_cnum - p.pos_bol; raw }
+
 let create_dummy () =
   let id = next_id () in
   let linenr = -1 in
