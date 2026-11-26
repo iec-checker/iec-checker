@@ -13,7 +13,7 @@ type dump_scheme = {
 } [@@deriving to_yojson]
 
 let create_dump ~dst_file elements environments cfgs =
-  let version = "0.1" in
+  let version = "0.2" in
   let functions =
     List.fold_left elements
       ~f:(fun acc e -> match e with S.IECFunction (_, f) -> acc @ [f] | _ -> acc)

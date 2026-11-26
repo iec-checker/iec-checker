@@ -87,3 +87,20 @@ def test_truly_unused_struct_still_warned():
     assert 'MS' in unused[0].msg
     with DumpManager(fdump):
         pass
+
+
+def test_element_field_access_counts_as_use():
+    warns, rc = check_program(
+        """
+        TYPE Rec : STRUCT lo : INT; flags : WORD; END_STRUCT; END_TYPE
+        PROGRAM p
+        VAR a : ARRAY[1..2] OF Rec; b : ARRAY[1..2] OF Rec; w : WORD; u : Rec; n : INT; END_VAR
+        n := a[1].lo;
+        b[2].flags.%X1 := w.3;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert rc == 0
+    msgs = [w.msg for w in filter_warns(warns, 'UnusedVariable')]
+    assert msgs == ['Found unused local variable: U'], msgs
+    with DumpManager('stdin.dump.json'):
+        pass

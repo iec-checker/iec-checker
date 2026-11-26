@@ -73,8 +73,23 @@
     let var_use = Syntax.VarUse.create_dir dv Syntax.VarUse.Elementary in
     var_use
   
-  let qj (a, (s : TI.t)) (b, (t : TI.t)) =
-    (a ^ "." ^ b, { t with raw = s.raw ^ "." ^ t.raw })
+  let qj q =
+    let (_, (t : TI.t)) = List.last_exn q in
+    (String.concat ~sep:"." (List.map q ~f:fst),
+     { t with raw = String.concat ~sep:"." (List.map q ~f:(fun (_, (t : TI.t)) -> t.raw)) })
+
+  let ix = function
+    | Syntax.ExprConstant (_, c) -> c_get_int c
+    | _ -> None
+
+  let sv q l =
+    match q with
+    | (n, t) :: f ->
+      List.fold_left
+        (List.map f ~f:(fun (m, _) -> Syntax.SymVar.Field m) @ l)
+        ~init:(Syntax.SymVar.create n t)
+        ~f:Syntax.SymVar.add_sel
+    | [] -> assert false
 
   let stmt_list_of_option = function
     | None -> []
@@ -1151,10 +1166,6 @@ let ref_spec :=
 
 (* ref_type_access: *)
 
-let ref_name :=
-  | id = qname;
-  { let name, ti = id in (name, ti) }
-
 let ref_value :=
   | T_NULL; { Syntax.RefNull }
   | ~ = ref_addr; <>
@@ -1172,14 +1183,12 @@ let ref_addr_value :=
   (* | ~ = class_instance_name; <> *)
 
 let ref_deref :=
-  | name_ti = ref_name; derefs = nonempty_list(T_DEREF);
+  | v = symbolic_variable; derefs = nonempty_list(T_DEREF);
   {
-    let name, ti = name_ti in
-    let var = mk_var_use name ti in
-    let var_expr = Syntax.ExprVariable(ti, var) in
+    let ti = Syntax.SymVar.get_ti v in
     List.fold_left
       derefs
-      ~init:var_expr
+      ~init:(Syntax.ExprVariable(ti, mk_var_use_sym v))
       ~f:(fun prev_expr _ -> Syntax.ExprUn(ti, Syntax.DEREF, prev_expr))
   }
 (* }}} *)
@@ -1192,39 +1201,26 @@ let variable :=
   { mk_var_use_sym sv }
 
 let symbolic_variable :=
-  | out = var_head;
-  { let (name, ti) = out in Syntax.SymVar.create name ti }
-  | ~ = multi_elem_var; <>
+  | q = qpath;
+  { sv q [] }
+  | q = qpath; s = path_head; l = list(path_sel);
+  { sv q (s :: l) }
 
-let var_access :=
-  | ~ = qname; <>
-  (* | ~ = ref_deref; <> *)
+let path_head :=
+  | l = array_access;
+  { Syntax.SymVar.Index (List.map l ~f:ix) }
+  | T_DOT; i = T_INTEGER;
+  { Syntax.SymVar.Bit (fst i) }
+  | T_DOT; ~ = T_DIR_VAR; <Syntax.SymVar.Part>
+
+let path_sel :=
+  | ~ = path_head; <>
+  | T_DOT; i = T_IDENTIFIER;
+  { Syntax.SymVar.Field (fst i) }
 
 let variable_name :=
   | id = T_IDENTIFIER;
   { let (name, ti) = id in (name, ti) }
-
-let multi_elem_var :=
-  | name_ti = var_access; T_LBRACK; sub_list = subscript_list; T_RBRACK; list(var_suffix);
-  {
-   let (name, ti) = name_ti in
-   let sv = Syntax.SymVar.create name ti in
-   (* Add array indexes to variable. *)
-   List.fold_left
-     sub_list
-     ~init:sv
-     ~f:(fun acc_sv e -> begin
-         match e with
-         | Syntax.ExprConstant (_,c) -> begin
-           let val_opt = c_get_int c in
-           match val_opt with
-           | Some v -> Syntax.SymVar.add_array_index acc_sv v
-           | None -> Syntax.SymVar.add_array_index_opaque acc_sv
-         end
-         | _ -> Syntax.SymVar.add_array_index_opaque acc_sv
-     end)
-  }
-  (* | ~ = var_access; sub_list = nonempty_list(struct_variable); *)
 
 let subscript_list :=
  | s = subscript;
@@ -1594,12 +1590,8 @@ let access_path :=
   {  }
 
 let global_var_access :=
-    | id = qname;
-    { let (name, ti) = id in mk_var_use name ti }
-    (* | out = global_var_name; list(struct_elem_name); *)
-    (* { Syntax.SymVar(out) }                                *)
-    (* | separated_list(T_DOT, resource_name); out = global_var_name; list(struct_elem_name); *)
-    (* { Syntax.SymVar(out) }                                                                      *)
+    | v = symbolic_variable;
+    { mk_var_use_sym v }
 
 let access_name :=
   | id = T_IDENTIFIER;
@@ -1854,38 +1846,21 @@ let enum_value_use :=
   | option(enum_value_opt); ~ = T_IDENTIFIER; <>
 
 let variable_access :=
-  | id = var_head;
-  { let (name, ti) = id in mk_var_use name ti }
-  | ~ = variable_expr; array_access; list(var_suffix); <>
+  | v = symbolic_variable;
+  { mk_var_use_sym v }
 
-let qname :=
-  | ~ = T_IDENTIFIER; <>
-  | q = qname; T_DOT; id = T_IDENTIFIER;
-  { qj q id }
+let qpath :=
+  | i = T_IDENTIFIER;
+  { [i] }
+  | q = qpath; T_DOT; i = T_IDENTIFIER;
+  { q @ [i] }
 
-let var_head :=
-  | ~ = qname; <>
-  | q = qname; T_DOT; i = T_INTEGER;
-  { let (_, t) = i in qj q (t.TI.raw, t) }
-  | ~ = qname; T_DOT; T_DIR_VAR; <>
-
-let var_suffix :=
-  | array_access; {}
-  | T_DOT; T_IDENTIFIER; {}
-  | T_DOT; T_INTEGER; {}
-  | T_DOT; T_DIR_VAR; {}
+let qname ==
+  | q = qpath;
+  { qj q }
 
 let array_access :=
   | T_LBRACK; ~ = subscript_list; T_RBRACK; <>
-
-(* Helper rule for variable_access.
-   This is required to avoid shift/reduce conflict with identifier from func_name rule. *)
-let variable_expr :=
-  | id = qname;
-  {
-    let (name, ti) = id in
-    mk_var_use name ti
-  }
 
 let func_call :=
   | f = func_access; T_LPAREN; stmts = separated_list(T_COMMA, param_assign); T_RPAREN;
@@ -1918,21 +1893,16 @@ let assign_stmt :=
   (* | ~ = ref_assign; <> *)
 
 let assignment_attempt :=
-  | name_ti = ref_name; T_ASSIGN_REF; rhs_expr = assignment_attempt_rhs;
+  | v = symbolic_variable; T_ASSIGN_REF; rhs_expr = assignment_attempt_rhs;
   {
-    let name, ti = name_ti in
-    let var = mk_var_use name ti in
-    Syntax.StmExpr(ti, Syntax.ExprBin(ti, Syntax.ExprVariable(ti, var), Syntax.ASSIGN_REF, rhs_expr))
+    let ti = Syntax.SymVar.get_ti v in
+    Syntax.StmExpr(ti, Syntax.ExprBin(ti, Syntax.ExprVariable(ti, mk_var_use_sym v), Syntax.ASSIGN_REF, rhs_expr))
   }
 
 (* Helper rule for [assignment_attempt] *)
 let assignment_attempt_rhs :=
-  | name_ti = ref_name;
-  {
-    let name, ti = name_ti in
-    let var = mk_var_use name ti in
-    Syntax.ExprVariable(ti, var)
-  }
+  | v = symbolic_variable;
+  { Syntax.ExprVariable(Syntax.SymVar.get_ti v, mk_var_use_sym v) }
   | ~ = ref_deref; <>
   | ref_val = ref_value;
   {
@@ -2109,11 +2079,7 @@ let for_stmt :=
   }
 
 let control_variable :=
-  | id = qname;
-  {
-    let (n, ti) = id in
-    Syntax.SymVar.create n ti
-  }
+  | ~ = symbolic_variable; <>
 
 let for_list :=
   | e1 = expression; T_TO; e2 = expression; T_BY; e3 = expression;

@@ -54,3 +54,33 @@ def test_use_define_array_of_arrays():
     assert not filter_warns(warns, 'ParserError')
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_out_of_bounds_reads_and_fields():
+    """Subscripts are checked on reads and when a field access follows."""
+    warns, rc = check_program(
+        """
+        TYPE Rec : STRUCT lo : INT; END_STRUCT; END_TYPE
+        PROGRAM p
+        VAR a : ARRAY[1..2] OF Rec; k : ARRAY[1..2] OF INT; g : ARRAY[0..1, 0..1] OF Rec; n, i : INT; END_VAR
+        n := k[1] + k[2];
+        n := k[8];
+        n := a[2].lo;
+        n := a[7].lo;
+        a[5].lo := 1;
+        a[1].lo := 1;
+        n := g[1, 4].lo;
+        n := g[i, 1].lo + a[i].lo + k[i];
+        n := s.k[9] + s.a[9].lo;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert rc == 0
+    msgs = sorted(w.msg for w in filter_warns(warns, 'OutOfBounds'))
+    assert msgs == [
+        'A index 5 is out of range [1 .. 2]',
+        'A index 7 is out of range [1 .. 2]',
+        'G index 4 is out of range [0 .. 1]',
+        'K index 8 is out of range [1 .. 2]',
+    ], msgs
+    with DumpManager('stdin.dump.json'):
+        pass

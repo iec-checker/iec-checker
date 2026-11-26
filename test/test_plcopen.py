@@ -5,7 +5,7 @@ from collections import Counter
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../src"))
-from python.core import run_checker, filter_warns  # noqa
+from python.core import run_checker, check_program, filter_warns  # noqa
 from python.dump import DumpManager  # noqa
 
 
@@ -258,4 +258,92 @@ def test_n10():
     assert rc == 0
     assert len(filter_warns(warns, 'PLCOPEN-N10')) == 2
     with DumpManager(fdump):
+        pass
+
+
+def test_cp17_field_and_element_access():
+    """Reading or writing a field or an element uses the parameter itself."""
+    warns, rc = check_program(
+        """
+        TYPE Rec : STRUCT lo : INT; hi : INT; END_STRUCT; END_TYPE
+        FUNCTION_BLOCK fb
+        VAR_INPUT ir : Rec; iw : Rec; ia : ARRAY[1..2] OF Rec; END_VAR
+        VAR_OUTPUT ow : Rec; oa : ARRAY[1..2] OF Rec; ou : Rec; END_VAR
+        VAR_IN_OUT io : Rec; END_VAR
+        VAR n : INT; END_VAR
+        n := ir.lo + ia[1].hi + io.lo;
+        ow.lo := n;
+        oa[2].hi := n;
+        iw.hi := 1;
+        END_FUNCTION_BLOCK
+        """.replace('\n', ''))
+    assert rc == 0
+    msgs = sorted(w.msg for w in filter_warns(warns, 'PLCOPEN-CP17'))
+    assert msgs == [
+        "Input parameter 'IW' of function block FB is never read",
+        "Input parameter 'IW' of function block FB should not be written",
+        "Output parameter 'OU' of function block FB is never written",
+    ], msgs
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
+def test_cp26_field_and_element_writes():
+    """A write to a field or an element of a global writes the global."""
+    warns, rc = check_program(
+        """
+        TYPE Rec : STRUCT lo : INT; END_STRUCT; END_TYPE
+        PROGRAM pa
+        VAR_EXTERNAL g : Rec; h : ARRAY[1..2] OF Rec; k : Rec; END_VAR
+        VAR n : INT; END_VAR
+        g.lo := 1; h[1].lo := 2; n := k.lo;
+        END_PROGRAM
+        PROGRAM pb
+        VAR_EXTERNAL g : Rec; h : ARRAY[1..2] OF Rec; k : Rec; END_VAR
+        VAR n : INT; END_VAR
+        g.lo := 3; h[2].lo := 4; n := k.lo;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert rc == 0
+    msgs = sorted(w.msg for w in filter_warns(warns, 'PLCOPEN-CP26'))
+    assert len(msgs) == 2, msgs
+    assert "'G'" in msgs[0] and "'H'" in msgs[1], msgs
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
+def test_cp25_path_is_not_typed_as_its_root():
+    warns, rc = check_program(
+        """
+        PROGRAM p
+        VAR n : INT; r : REAL; w : WORD; END_VAR
+        n := r;
+        w.3 := r;
+        n.lo := r;
+        r := w.%X1;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert rc == 0
+    assert len(filter_warns(warns, 'PLCOPEN-CP25')) == 1
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
+def test_l22_l13_qualified_loop_variable():
+    """A loop variable `g.i` is that path, not every access rooted at `g`."""
+    warns, rc = check_program(
+        """
+        PROGRAM p
+        VAR n : INT; END_VAR
+        FOR g.i := 1 TO 3 DO g.other := 1; n := g.limit; g.i := 2; END_FOR;
+        n := g.other;
+        n := g.i;
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert rc == 0
+    l22 = filter_warns(warns, 'PLCOPEN-L22')
+    l13 = filter_warns(warns, 'PLCOPEN-L13')
+    assert [w.msg for w in l22] == ["Loop variable 'G.I' should not be modified inside a FOR loop"]
+    assert [w.msg for w in l13] == ["FOR loop variable 'G.I' should not be used outside the FOR loop"]
+    with DumpManager('stdin.dump.json'):
         pass

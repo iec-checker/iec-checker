@@ -78,21 +78,6 @@ module type ID = sig
   val get_ti : t -> TI.t
 end
 
-(** Identifier of symbolically represented variable *)
-module SymVar : sig
-  include ID
-
-  val add_array_index : t -> int -> t
-  (** [add_array_index var index] Add array addressation to [index]. There may
-      be more than one indexes for multi-dimension arrays, e.g. A[1][3]. *)
-  val add_array_index_opaque : t -> t
-  (** [add_array_index_opaque var] Add array addressation to unknown index
-      that can't be evaluated before run time, e.g. A[f(a,b)]. *)
-  val get_array_indexes : t -> int option list
-
-  val to_yojson : t -> Yojson.Safe.t
-end
-
 (** Identifier of directly represented variable *)
 module DirVar : sig
   include ID
@@ -136,6 +121,32 @@ module DirVar : sig
   val path_to_string : int list -> string
 
   val to_string : t -> string
+  val to_yojson : t -> Yojson.Safe.t
+end
+
+(** Symbolically represented variable: a root identifier followed by selectors,
+    e.g. [a.b[1, i].c.%X0]. *)
+module SymVar : sig
+  include ID
+
+  type sel =
+    | Field of string (** [.f] *)
+    | Index of int option list (** [[1, i]]; [None] is a subscript that is not an integer literal *)
+    | Bit of int (** [.5] *)
+    | Part of DirVar.t (** [.%X5] *)
+
+  val get_name : t -> string
+  (** Name of the root identifier. *)
+
+  val add_sel : t -> sel -> t
+  val get_path : t -> sel list
+
+  val get_array_indexes : t -> int option list
+  (** Subscripts applied directly to the root identifier. *)
+
+  val to_string : t -> string
+  (** The whole path, e.g. ["A.B[1, ?].C"]. *)
+
   val to_yojson : t -> Yojson.Safe.t
 end
 
@@ -183,8 +194,15 @@ module VarUse : sig
   val create_dir : DirVar.t -> var_type -> t
 
   val get_name : t -> string
+  (** Root identifier of a symbolic variable, or the spelling of a direct one. *)
+
   val get_ti : t -> TI.t
   val get_loc : t -> loc_type
+
+  val get_path : t -> SymVar.sel list
+  (** Selectors applied to the root identifier; empty for direct variables. *)
+
+  val to_string : t -> string
 end
 (* }}} *)
 
@@ -462,7 +480,6 @@ module Task : sig
     | DSConstant of constant
     | DSGlobalVar of VarUse.t
     | DSDirectVar of VarUse.t
-    | DSProgOutput of string (** program name *) * VarUse.t
   [@@deriving to_yojson]
 
   val create : string -> TI.t -> t

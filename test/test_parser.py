@@ -1019,3 +1019,41 @@ def test_qualified_names():
     assert not _syntax_errors(warns), _syntax_errors(warns)
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def _find_sym_vars(node):
+    if isinstance(node, list):
+        if len(node) == 2 and node[0] == 'SymVar' and isinstance(node[1], dict):
+            yield node[1]
+        for child in node:
+            yield from _find_sym_vars(child)
+    elif isinstance(node, dict):
+        for child in node.values():
+            yield from _find_sym_vars(child)
+
+
+def test_variable_paths_in_dump():
+    """A symbolic variable is dumped as its root name and a selector list."""
+    warns, rc = check_program(_PATH_PRG % (
+        'k.sub.lo := c[1].hi; g[i, 1].sub.arr[n + 1].lo := w.5; b := c[2].flags.%X3; n := i;'))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    with open('stdin.dump.json') as fp:
+        scheme = json.load(fp)
+    os.remove('stdin.dump.json')
+    assert scheme['version'] == '0.2'
+    use = [v for v in _find_sym_vars(scheme['programs'][0]['statements'])]
+
+    def path(v):
+        return [s if s[0] != 'Part' else ['Part'] for s in v['path']]
+    got = {(v['name'], json.dumps(path(v))) for v in use}
+    assert got == {
+        ('K', '[["Field", "SUB"], ["Field", "LO"]]'),
+        ('C', '[["Index", [1]], ["Field", "HI"]]'),
+        ('G', '[["Index", [null, 1]], ["Field", "SUB"], ["Field", "ARR"], ["Index", [null]], ["Field", "LO"]]'),
+        ('W', '[["Bit", 5]]'),
+        ('B', '[]'),
+        ('C', '[["Index", [2]], ["Field", "FLAGS"], ["Part"]]'),
+        ('N', '[]'),
+        ('I', '[]'),
+    }, got
+    assert all(v['ti']['raw'].upper() == v['name'] for v in use)

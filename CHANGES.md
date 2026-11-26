@@ -58,6 +58,10 @@
 - Lexer: accept the `STRING#` literal prefix in any case
 - Parser: accept subrange specifications in variable declarations (`r : INT (0..10) := 5;`)
 - Lexer/Parser: lex `.` as a separate token instead of as a part of identifiers. Field access after a subscript (`a[i].f`, `m[i, j].f.g[k].h`), bit access (`w.%X0`, `w.5`) and whitespace or comments around `.` are accepted; field names that spell a keyword (`x.single`) stay identifiers. Malformed paths (`s..f`, `s.`), qualified names in declarations (`a.b : INT;`) and qualified formal parameter names (`f(s.x := 1)`) are rejected
+- Core: represent a symbolic variable as a root identifier and a selector path (`.field`, `[i, j]`, `.5`, `.%X5`) instead of one dotted name. `VarUse.get_name` is the root; subscripts are recorded in expressions too. The JSON dump (version `0.2`) has `path` in place of `array_indexes`
+- `PLCOPEN-CP17`: fix false positives for parameters that are read or written only through a field or an element (`inp.f`, `out[i].f := x`); report writes to a field of an input parameter
+- `PLCOPEN-CP26`: count writes to a field or an element of a `VAR_EXTERNAL` variable
+- `OutOfBounds`: check subscripts on reads (`x := a[9]`) and when a field access follows (`a[9].f`)
 
 ## 0.4.0 (2022-02-26)
 

@@ -26,8 +26,12 @@ let check_assign_expr (ti : TI.t) lhs rhs env =
       end
     | _ -> None
   in
-  let lhs_opt = Env.lookup_vdecl env (S.VarUse.get_name lhs)
-  and rhs_opt = Env.lookup_vdecl env (S.VarUse.get_name rhs)
+  let d v =
+    if List.is_empty (S.VarUse.get_path v) then Env.lookup_vdecl env (S.VarUse.get_name v)
+    else None
+  in
+  let lhs_opt = d lhs
+  and rhs_opt = d rhs
   in
   match (lhs_opt,rhs_opt) with
   | (Some(lhs), Some(rhs)) -> check_types lhs rhs

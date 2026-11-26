@@ -8,7 +8,7 @@ module AU = Ast_util
 let get_ctrl_var_name (ctrl : S.for_control) =
   match ctrl.assign with
   | S.StmExpr (_, S.ExprBin (_, S.ExprVariable (_, vu), S.ASSIGN, _)) ->
-    Some (S.VarUse.get_name vu)
+    Some (S.VarUse.to_string vu)
   | _ -> None
 
 (** Recursively find assignments to [var_name] in statements.
@@ -43,7 +43,7 @@ and find_in_stmt var_name = function
 
 and find_in_expr var_name = function
   | S.ExprBin (ti, S.ExprVariable (_, vu), S.ASSIGN, _)
-    when String.equal (S.VarUse.get_name vu) var_name ->
+    when String.equal (S.VarUse.to_string vu) var_name ->
     let msg =
       Printf.sprintf
         "Loop variable '%s' should not be modified inside a FOR loop"

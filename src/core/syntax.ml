@@ -101,29 +101,6 @@ module type ID = sig
   val get_ti : t -> TI.t
 end
 
-module SymVar = struct
-  type t = {
-    name : string;
-    ti : TI.t;
-    array_indexes: int option list;
-  } [@@deriving to_yojson, show]
-
-  let create name ti =
-    let array_indexes = [] in
-    { name; ti; array_indexes; }
-
-  let get_name id = id.name
-  let get_ti id = id.ti
-
-  let add_array_index var idx =
-    { var with array_indexes = var.array_indexes @ [Some(idx)] }
-  let add_array_index_opaque var =
-    { var with array_indexes = var.array_indexes @ [None] }
-  let get_array_indexes var = var.array_indexes
-
-  let to_yojson t = to_yojson t
-end
-
 module DirVar = struct
   type location = LocI | LocQ | LocM
   [@@deriving to_yojson, show]
@@ -233,6 +210,45 @@ module DirVar = struct
   let get_name var = to_string var
 end
 
+module SymVar = struct
+  type sel =
+    | Field of string
+    | Index of int option list
+    | Bit of int
+    | Part of DirVar.t
+  [@@deriving to_yojson, show]
+
+  type t = {
+    name : string;
+    ti : TI.t;
+    path : sel list;
+  } [@@deriving to_yojson, show]
+
+  let create name ti = { name; ti; path = [] }
+
+  let get_name v = v.name
+  let get_ti v = v.ti
+  let get_path v = v.path
+  let add_sel v s = { v with path = v.path @ [s] }
+
+  let get_array_indexes v =
+    match v.path with
+    | Index l :: _ -> l
+    | _ -> []
+
+  let to_string v =
+    let f = function
+      | Field n -> "." ^ n
+      | Index l ->
+        "[" ^ String.concat ~sep:", " (List.map l ~f:(function Some i -> Int.to_string i | None -> "?")) ^ "]"
+      | Bit n -> "." ^ Int.to_string n
+      | Part d -> "." ^ DirVar.to_string d
+    in
+    v.name ^ String.concat (List.map v.path ~f)
+
+  let to_yojson t = to_yojson t
+end
+
 module FunctionBlock = struct
   type t = { name : string; ti : TI.t; is_std : bool }
   [@@deriving to_yojson]
@@ -320,6 +336,16 @@ module VarUse = struct
     match var.loc with
     | SymVar(v) -> (let ti = SymVar.get_ti(v) in ti)
     | DirVar(v) -> (let ti = DirVar.get_ti(v) in ti)
+
+  let get_path var =
+    match var.loc with
+    | SymVar v -> SymVar.get_path v
+    | DirVar _ -> []
+
+  let to_string var =
+    match var.loc with
+    | SymVar v -> SymVar.to_string v
+    | DirVar v -> DirVar.to_string v
 
   let get_loc var = var.loc
 end
@@ -730,7 +756,6 @@ module Task = struct
     | DSConstant of constant
     | DSGlobalVar of VarUse.t
     | DSDirectVar of VarUse.t
-    | DSProgOutput of string * VarUse.t
   [@@deriving to_yojson]
 
   let create name ti =
