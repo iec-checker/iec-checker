@@ -77,6 +77,7 @@
 - Parser: accept anonymous enumerations in variable declarations (`mode : (IDLE, RUN) := IDLE;`)
 - Parser: accept `ARRAY` (with an initializer), subrange and anonymous enumeration types of STRUCT elements. In dumps, `struct_elem_ty` is now tagged: `Single`, `Subrange`, `Enum` or `Array`
 - Parser: accept functions without a result type (3rd edition); their `return_ty` is `null` in dumps
+- Lexer: an integer above 62 bits (`16#FFFFFFFFFFFFFFFF`) is a `LexingError`; it crashed the checker, or, for a based literal up to 63 bits, was silently wrapped to a negative value
 
 ## 0.4.0 (2022-02-26)
 

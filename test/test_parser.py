@@ -1448,3 +1448,28 @@ def test_function_without_result_type():
                   'DBL': ['TyElementary', ['INT']]}, rt
     warns, rc = check_program('FUNCTION f : END_FUNCTION')
     assert rc == 1 and _syntax_errors(warns), warns
+
+
+def test_integer_literal_range():
+    """Integers are stored in 63 bits: larger literals are a lexing error,
+    never a crash or a value wrapped to a negative number."""
+    big = ['4611686018427387904', '16#4000_0000_0000_0000',
+           '16#7FFFFFFFFFFFFFFF', '16#FFFFFFFFFFFFFFFF',
+           '8#777777777777777777777', '2#' + '1' * 63,
+           'LINT#9223372036854775807']
+    for lit in big:
+        warns, rc = check_program(
+            f'PROGRAM p VAR x : LINT; END_VAR x := {lit}; END_PROGRAM')
+        assert rc == 1, (lit, warns)
+        assert [w.id for w in warns] == ['LexingError'], (lit, warns)
+        assert 'too large' in warns[0].msg, (lit, warns)
+    for src in ['PROGRAM p VAR w : WORD; b : BOOL; END_VAR b := w.99999999999999999999; END_PROGRAM',
+                'PROGRAM p VAR d AT %IX1.99999999999999999999 : BOOL; END_VAR END_PROGRAM',
+                'PROGRAM p VAR s : STRING[99999999999999999999]; END_VAR END_PROGRAM']:
+        warns, rc = check_program(src)
+        assert rc == 1 and [w.id for w in warns] == ['LexingError'], (src, warns)
+    d = _dump_of(
+        'PROGRAM p VAR x, y : LINT; END_VAR '
+        'x := 16#3FFF_FFFF_FFFF_FFFF; y := 4611686018427387903; END_PROGRAM')
+    vals = [c[-1] for c in _find_stmts(d, 'Integer')]
+    assert len(vals) >= 2 and set(vals) == {4611686018427387903}, vals

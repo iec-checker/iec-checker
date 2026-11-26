@@ -8,6 +8,13 @@
 
   exception LexingError of string
 
+  (* [int_of_string] wraps a based literal between [max_int] and
+     [2 * max_int + 1] to a negative value instead of failing. *)
+  let int_of_literal ?(prefix = "") ?lit digits =
+    match Stdlib.int_of_string_opt (prefix ^ digits) with
+    | Some v when v >= 0 -> v
+    | _ -> raise (LexingError ("Integer is too large (more than 62 bits): " ^ Option.value lit ~default:digits))
+
   let incr_linenum lexbuf =
     let pos = lexbuf.Lexing.lex_curr_p in
       lexbuf.Lexing.lex_curr_p <- { pos with
@@ -309,28 +316,28 @@ rule initial tokinfo =
   (* {{{ Integer literals *)
   | integer as i
   {
-      let v = int_of_string i in
+      let v = int_of_literal i in
       (* Printf.printf "INTEGER: %s -> %d\n" i v; *)
       let ti = tokinfo lexbuf in
       T_INTEGER(v, ti)
   }
   | binary_integer as i
   {
-      let v = int_of_string ("0b" ^ (String.slice i 2 (String.length i))) in
+      let v = int_of_literal ~prefix:"0b" ~lit:i (String.slice i 2 (String.length i)) in
       (* Printf.printf "BINARY_INTEGER: %s -> %d\n" i v; *)
       let ti = tokinfo lexbuf in
       T_BINARY_INTEGER(v, ti)
   }
   | octal_integer as i
   {
-      let v = int_of_string ("0o" ^ (String.slice i 2 (String.length i))) in
+      let v = int_of_literal ~prefix:"0o" ~lit:i (String.slice i 2 (String.length i)) in
       (* Printf.printf "OCTAL_INTEGER: %s -> %d\n" i v; *)
       let ti = tokinfo lexbuf in
       T_BINARY_INTEGER(v, ti)
   }
   | hex_integer as i
   {
-      let v = int_of_string ("0x" ^ (String.slice i 3 (String.length i))) in
+      let v = int_of_literal ~prefix:"0x" ~lit:i (String.slice i 3 (String.length i)) in
       (* Printf.printf "HEX_INTEGER: %s -> %d\n" i v; *)
       let ti = tokinfo lexbuf in
       T_BINARY_INTEGER(v, ti)
@@ -443,7 +450,7 @@ and field tokinfo = parse
   | "//"        { singleline_comment (field tokinfo) lexbuf }
   | "{"         { pragma (field tokinfo) 1 lexbuf }
   | label as v  { T_IDENTIFIER(String.uppercase v, Tok_info.create_with_raw lexbuf v) }
-  | digit+ as v { T_INTEGER(int_of_string v, Tok_info.create_with_raw lexbuf v) }
+  | digit+ as v { T_INTEGER(int_of_literal v, Tok_info.create_with_raw lexbuf v) }
   | ""          { initial tokinfo lexbuf }
   (* }}} *)
 
@@ -514,14 +521,14 @@ and direct_variable var ti = parse
   | digit+
   {
     (* First digit in the path *)
-    let path_value = int_of_string (Lexing.lexeme lexbuf) in
+    let path_value = int_of_literal (Lexing.lexeme lexbuf) in
     let var = Syntax.DirVar.set_path var [path_value] in
     direct_variable var ti lexbuf
   }
   | '.' digit+
   {
     let str_val = (Lexing.lexeme lexbuf) in
-    let new_item = int_of_string (String.slice str_val 1 (String.length str_val)) in
+    let new_item = int_of_literal (String.slice str_val 1 (String.length str_val)) in
     let path_value = Syntax.DirVar.get_path var in
     if List.is_empty path_value then
       (* something like '%QD.1' *)
