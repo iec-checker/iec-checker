@@ -56,6 +56,7 @@
 - Lexer: stop reserving `EQU`, which is not an IEC 61131-3 keyword, so it can be used as an identifier
 - Lexer: skip a UTF-8 byte order mark; report unexpected non-ASCII characters whole, and escape invalid UTF-8 bytes (e.g. Latin-1 sources) in diagnostics so `-o json` output is always valid UTF-8
 - Lexer: accept the `STRING#` literal prefix in any case
+- Parser: accept subrange specifications in variable declarations (`r : INT (0..10) := 5;`)
 
 ## 0.4.0 (2022-02-26)
 

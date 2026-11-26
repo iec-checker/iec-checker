@@ -2257,6 +2257,19 @@ let var_decl :=
       end)
   }
   (* | var_names = separated_nonempty_list(T_COMMA, variable_name); T_COLON; str_var_decl; <> *)
+  | var_names = separated_nonempty_list(T_COMMA, variable_name); T_COLON;
+      ty = int_type_name; T_LPAREN; s = subrange; T_RPAREN; init = optional_assign(signed_int);
+  {
+    let (_, lb, ub) = s in
+    let iv = match init with Some ic -> c_get_int_exn ic | None -> lb in
+    let spec = Syntax.DTyDeclSubrange((ty, lb, ub), iv) in
+    List.map
+      var_names
+      ~f:(fun (n, ti) -> begin
+        let var = Syntax.VarDecl.create ~ty_spec:(Some(spec)) (mk_var_use n ti) in
+        Syntax.VarDecl.set_was_init var (Option.is_some init)
+      end)
+  }
   | var_names = separated_nonempty_list(T_COMMA, variable_name); T_COLON; ty_specs = ref_spec_init;
   {
     let (ref_level, ref_ty, inval_opt) = ty_specs in

@@ -44,3 +44,25 @@ def test_array_initialized_list():
         scheme = dm.scheme
         assert scheme
         assert len(scheme.types) == 1
+
+
+def test_subrange_var_initial_value():
+    warns, rc = check_program(
+        """
+        PROGRAM p
+          VAR
+            ok : INT (0..10) := 10;
+            lo : INT (0..10) := -1;
+            hi : INT (0..10) := 11;
+          END_VAR
+          ok := lo + hi;
+        END_PROGRAM
+        """.replace('\n', ''))
+    msgs = sorted(w.msg for w in filter_warns(warns, 'OutOfBounds'))
+    assert msgs == [
+        'Initial subrange value -1 does not fit the specified range (0 .. 10)',
+        'Initial subrange value 11 does not fit the specified range (0 .. 10)',
+    ], msgs
+    assert not filter_warns(warns, 'ParserError')
+    with DumpManager('stdin.dump.json'):
+        pass

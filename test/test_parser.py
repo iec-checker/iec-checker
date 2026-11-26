@@ -844,3 +844,34 @@ def test_string_prefix_case_insensitive():
     low = p.replace("STRING#'a", "string#'a").replace("STRING#'c", "String#'c")
     assert "string#'a b'" in low and "String#'c'" in low
     assert _dump_of(p) == _dump_of(low)
+
+
+def test_subrange_var_decl():
+    """Variables may be declared with a subrange specification
+    (IEC 61131-3, B.1.4.3: `var1_init_decl ::= var1_list ':'
+    (simple_spec_init | subrange_spec_init | enumerated_spec_init)`)."""
+    d = _dump_of(
+        """
+        FUNCTION_BLOCK fb
+        VAR_INPUT i : USINT (1..8) := 8; END_VAR
+        VAR r : INT (0..10) := 5; a, b : SINT (-5..5); END_VAR
+        r := a;
+        END_FUNCTION_BLOCK
+        """.replace('\n', ''))
+    vs = {v['var']['loc'][1]['name']: (v['ty_spec'], v['was_init'])
+          for v in d['function_blocks'][0]['variables']}
+    assert vs == {
+        'I': (['DTyDeclSubrange', [['USINT'], 1, 8], 8], True),
+        'R': (['DTyDeclSubrange', [['INT'], 0, 10], 5], True),
+        'A': (['DTyDeclSubrange', [['SINT'], -5, 5], -5], False),
+        'B': (['DTyDeclSubrange', [['SINT'], -5, 5], -5], False),
+    }, vs
+
+
+def test_subrange_var_decl_needs_integer_type():
+    warns, rc = check_program(
+        'PROGRAM p VAR x : REAL (0..1); END_VAR x := 0.5; END_PROGRAM')
+    e = _syntax_errors(warns)
+    assert rc == 1 and len(e) == 1 and e[0].id == 'ParserError', warns
+    with DumpManager('stdin.dump.json'):
+        pass
