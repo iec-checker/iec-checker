@@ -1262,3 +1262,27 @@ def test_string_length_in_parentheses():
         ['Length of initialization string literal exceeds string length (3 > 2)']
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_configuration_several_global_sections():
+    """CONSTANT and RETAIN qualify a whole VAR_GLOBAL section, so a
+    configuration or resource with both kinds of globals needs several."""
+    d = _dump_of(
+        """
+        PROGRAM prg VAR x : INT; END_VAR x := 1; END_PROGRAM
+        CONFIGURATION plant
+          VAR_GLOBAL CONSTANT limit : INT := 10; END_VAR
+          VAR_GLOBAL run AT %QX0.0 : BOOL; level : INT; END_VAR
+          VAR_GLOBAL RETAIN total : DINT; END_VAR
+          RESOURCE cpu ON PLC
+            VAR_GLOBAL CONSTANT period : TIME := T#10ms; END_VAR
+            VAR_GLOBAL count : INT; END_VAR
+            TASK cyclic(INTERVAL := period, PRIORITY := 1);
+            PROGRAM main WITH cyclic : prg;
+          END_RESOURCE
+        END_CONFIGURATION
+        """.replace('\n', ''))
+    cfg = d['configurations'][0]
+    names = lambda vs: sorted(v['var']['loc'][1]['name'] for v in vs)
+    assert names(cfg['variables']) == ['LEVEL', 'LIMIT', 'RUN', 'TOTAL']
+    assert names(cfg['resources'][0]['variables']) == ['COUNT', 'PERIOD']

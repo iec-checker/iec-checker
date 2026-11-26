@@ -1546,13 +1546,13 @@ let config_decl :=
   | T_CONFIGURATION; name = config_name; rd = resource_decls; T_END_CONFIGURATION;
   { Syntax.{ name; resources = rd; variables = []; access_paths = [] } }
   (* With global variables *)
-  | T_CONFIGURATION; name = config_name; vds = var_global_decl; rd = resource_decls; T_END_CONFIGURATION;
+  | T_CONFIGURATION; name = config_name; vds = global_var_sections; rd = resource_decls; T_END_CONFIGURATION;
   { Syntax.{ name; resources = rd; variables = vds; access_paths = [] } }
-  | T_CONFIGURATION; name = config_name; vds = var_global_decl; rd = resource_decls; var_decls; T_END_CONFIGURATION;
+  | T_CONFIGURATION; name = config_name; vds = global_var_sections; rd = resource_decls; var_decls; T_END_CONFIGURATION;
   { Syntax.{ name; resources = rd; variables = vds; access_paths = [] } }
-  | T_CONFIGURATION; name = config_name; vds = var_global_decl; rd = resource_decls; access_decls; T_END_CONFIGURATION;
+  | T_CONFIGURATION; name = config_name; vds = global_var_sections; rd = resource_decls; access_decls; T_END_CONFIGURATION;
   { Syntax.{ name; resources = rd; variables = vds; access_paths = [] } }
-  | T_CONFIGURATION; name = config_name; vds = var_global_decl; rd = resource_decls; access_decls; var_decls; T_END_CONFIGURATION;
+  | T_CONFIGURATION; name = config_name; vds = global_var_sections; rd = resource_decls; access_decls; var_decls; T_END_CONFIGURATION;
   { Syntax.{ name; resources = rd; variables = vds; access_paths = [] } }
 
 (* Helper rule for config_decl *)
@@ -1564,7 +1564,7 @@ let resource_decls :=
 let resource_decl :=
   | T_RESOURCE; n = resource_name; T_ON; resource_type_name; rc = single_resource_decl; T_END_RESOURCE;
   { Syntax.{ name = Some n; tasks = rc.tasks; variables = []; programs = rc.programs } }
-  | T_RESOURCE; n = resource_name; T_ON; resource_type_name; vs = var_global_decl; rc = single_resource_decl; T_END_RESOURCE;
+  | T_RESOURCE; n = resource_name; T_ON; resource_type_name; vs = global_var_sections; rc = single_resource_decl; T_END_RESOURCE;
   { Syntax.{ name = Some n; tasks = rc.tasks; variables = vs; programs = rc.programs } }
 
 (* Return Syntax.resource_decl *)
@@ -2175,6 +2175,11 @@ let var_decls1 :=
     (* List.rev vars                                                              *)
     (* |> List.map ~f:(fun v -> Syntax.VarDecl.set_attr v Syntax.VarDecl.VarTemp) *)
   }
+
+(* Several sections, so that CONSTANT and RETAIN globals can coexist; the
+   standard allows one. *)
+let global_var_sections :=
+  | vs = nonempty_list(var_global_decl); { List.concat vs }
 
 let var_global_decl :=
   | T_VAR_GLOBAL; option(qualifier); vars = var_decls_list; T_END_VAR;
