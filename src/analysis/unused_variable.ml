@@ -6,25 +6,25 @@ module Warn = IECCheckerCore.Warn
 let check_pou elem =
   let module StringSet = Set.Make(String) in
 
-  (* Get names of variables declared in POU. *)
   let get_decl_var_names () =
     AU.get_var_decls elem
     |> List.map ~f:(fun vardecl -> S.VarDecl.get_var_name vardecl)
   in
 
-  (* Get names of variables used in POU. *)
   let get_use_var_names () =
-    AU.filter_exprs
-      elem
-      ~f:(fun expr -> begin
-            match expr with S.ExprVariable _ -> true | _ -> false
-          end)
-    |> List.map
-      ~f:(fun expr -> begin
-            match expr with
-            | S.ExprVariable (_, v) -> S.VarUse.get_name v
-            | _ -> assert false
-          end)
+    let exprs = AU.get_pou_subexprs elem in
+    let vars =
+      List.filter_map exprs ~f:(function
+          | S.ExprVariable (_, v) -> Some (S.VarUse.get_name v)
+          | _ -> None)
+    and invoked =
+      List.filter_map exprs ~f:(function S.ExprFuncCall (_, s) -> Some s | _ -> None)
+      |> List.append (AU.get_pou_stmts elem)
+      |> List.filter_map ~f:(function
+          | S.StmFuncCall (_, f, _) -> Some (S.Function.get_name f)
+          | _ -> None)
+    in
+    vars @ invoked
   in
 
   let decl_set = StringSet.of_list (get_decl_var_names ())

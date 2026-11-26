@@ -104,3 +104,31 @@ def test_element_field_access_counts_as_use():
     assert msgs == ['Found unused local variable: U'], msgs
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_invoked_instance_and_nested_call_argument_are_uses():
+    """An FB instance that is only invoked, and a variable read by a call
+    nested in another call, are used."""
+    warns, rc = check_program(
+        """
+        FUNCTION_BLOCK Counter
+        VAR_INPUT inc : INT; END_VAR
+        VAR_OUTPUT total : INT; END_VAR
+        total := total + inc;
+        END_FUNCTION_BLOCK
+        PROGRAM p
+        VAR
+          c : Counter;
+          raw : INT := -5;
+          spare : INT;
+          res : INT;
+        END_VAR
+        c(inc := 2);
+        res := ABS(ABS(raw) + 1);
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert rc == 0
+    msgs = [w.msg for w in filter_warns(warns, 'UnusedVariable')]
+    assert msgs == ['Found unused local variable: SPARE'], msgs
+    with DumpManager('stdin.dump.json'):
+        pass
