@@ -1163,3 +1163,31 @@ def test_not_is_not_negation():
         END_PROGRAM
         """.replace('\n', ''))
     assert list(_unary_ops(d)) == ['NOT', 'NEG', 'NOT', 'NEG', 'NOT']
+
+
+def test_task_init_all_inputs():
+    """`'(' ['SINGLE' ':=' data_source ','] ['INTERVAL' ':=' data_source ',']
+    'PRIORITY' ':=' integer ')'` (IEC 61131-3, B.1.7)."""
+    cfg = """
+        PROGRAM prg VAR x : INT; END_VAR x := 1; END_PROGRAM
+        CONFIGURATION c
+          VAR_GLOBAL trig : BOOL; END_VAR
+          RESOURCE r ON PLC
+            TASK t1(SINGLE := trig, INTERVAL := T#20ms, PRIORITY := 2);
+            TASK t2(SINGLE := trig, PRIORITY := 1);
+            TASK t3(INTERVAL := T#5ms, PRIORITY := 0);
+            TASK t4(PRIORITY := 3);
+            PROGRAM i1 WITH t1 : prg;
+          END_RESOURCE
+        END_CONFIGURATION
+        """.replace('\n', '')
+    warns, rc = check_program(cfg)
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    with DumpManager('stdin.dump.json'):
+        pass
+    bad = cfg.replace('SINGLE := trig, INTERVAL := T#20ms', 'SINGLE trig, INTERVAL T#20ms')
+    warns, rc = check_program(bad)
+    e = _syntax_errors(warns)
+    assert rc == 1 and len(e) == 1 and e[0].id == 'ParserError', warns
+    with DumpManager('stdin.dump.json'):
+        pass

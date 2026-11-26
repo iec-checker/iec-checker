@@ -1622,7 +1622,7 @@ let task_name :=
   { let (name, ti) = id in Syntax.Task.create name ti }
 
 let task_init :=
-  | T_LPAREN; T_SINGLE; s = data_source; T_COMMA; T_INTERVAL; i = data_source; T_COMMA; T_PRIORITY; T_ASSIGN; p = unsigned_int; T_RPAREN;
+  | T_LPAREN; T_SINGLE; T_ASSIGN; s = data_source; T_COMMA; T_INTERVAL; T_ASSIGN; i = data_source; T_COMMA; T_PRIORITY; T_ASSIGN; p = unsigned_int; T_RPAREN;
   { (Some s, Some i, Some p) }
   | T_LPAREN; T_SINGLE; T_ASSIGN; s = data_source; T_COMMA; T_PRIORITY; T_ASSIGN; p = unsigned_int; T_RPAREN;
   { (Some s, None, Some p) }
