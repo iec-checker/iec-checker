@@ -999,35 +999,34 @@ let array_spec :=
   (* FIXME: Not sure how this should work. See same comment for [enum_spec_init] below. *)
   (* | ~ = array_type_access; <> *)
 
-(* Initializer list in the following format: [3, 2, 3(4), 5].
-   It will be converted to [3, 2, 4, 4, 4 5]. *)
+(* Initializer list in the following format: [3, 2, 3(4), 5, [6, 7]].
+   It will be converted to [3, 2, 4, 4, 4, 5, 6, 7]: nested lists are
+   flattened in row-major order, which is the storage order of the elements. *)
 let array_init :=
   | T_LBRACK; init_list = separated_nonempty_list(T_COMMA, array_elem_init); T_RBRACK;
   { list_flatten init_list }
 
 let array_elem_init :=
-  | v = array_elem_init_value;
-  { [v] }
+  | ~ = array_elem_init_value; <>
   | mul_c = unsigned_int; T_LPAREN; inval = option(array_elem_init_value); T_RPAREN;
   {
     let v = match inval with
       | Some v -> v
-      | None -> Syntax.CInteger((TI.create_dummy ()), None, 0)
+      | None -> [Syntax.CInteger((TI.create_dummy ()), None, 0)]
     in
     match mul_c with
-    | Syntax.CInteger(_, _, n) -> List.init n ~f:(fun _ -> v)
+    | Syntax.CInteger(_, _, n) -> List.concat (List.init n ~f:(fun _ -> v))
     | _ -> assert false
   }
 
 let array_elem_init_value :=
   | expr = constant_expr;
   {
-    let c = match expr with Syntax.ExprConstant(_, c) -> c | _ -> assert false in
-    c
+    match expr with Syntax.ExprConstant(_, c) -> [c] | _ -> assert false
   }
+  | ~ = array_init; <>
   (* | ~ = enum_value; <>  *)
   (* | ~ = struct_init; <> *)
-  (* | ~ = array_init; <>  *)
 
 let struct_type_decl :=
   | name_type = type_decl_helper_opt; spec = struct_spec;

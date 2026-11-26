@@ -1057,3 +1057,40 @@ def test_variable_paths_in_dump():
         ('I', '[]'),
     }, got
     assert all(v['ti']['raw'].upper() == v['name'] for v in use)
+
+
+def test_nested_array_init():
+    """Nested initializer lists are flattened in row-major order."""
+    warns, rc = check_program(
+        """
+        TYPE G : ARRAY[0..1, 0..2] OF INT := [[1, 2, 3], [4, 5, 6]]; END_TYPE
+        PROGRAM p
+        VAR
+          a : ARRAY[0..1, 0..1] OF INT := [[5, 6], [7, 8]];
+          b : ARRAY[1..2, 1..2] OF INT := [2([3, 4])];
+          c : ARRAY[1..2, 1..2] OF INT := [[1, 2], 2(9)];
+          d : ARRAY[0..1, 0..1, 0..1] OF INT := [[[1, 2], [3, 4]], [[5, 6], 2()]];
+          e : ARRAY[0..1, 0..1] OF INT := [[1, 2], [3, 4, 5]];
+        END_VAR
+        a[0, 0] := b[1, 1] + c[1, 1] + d[0, 0, 0] + e[0, 0];
+        END_PROGRAM
+        """.replace('\n', ''))
+    assert not _syntax_errors(warns), _syntax_errors(warns)
+    ws = filter_warns(warns, 'OutOfBounds')
+    assert [w.msg for w in ws] == \
+        ['E: Array initializer list exceeds capacity. Last 1 values will be lost.'], ws
+    with open('stdin.dump.json') as fp:
+        inits = _array_inits(json.load(fp))
+    os.remove('stdin.dump.json')
+    assert inits == {'A': [5, 6, 7, 8], 'B': [3, 4, 3, 4], 'C': [1, 2, 9, 9],
+                     'D': [1, 2, 3, 4, 5, 6, 0, 0], 'E': [1, 2, 3, 4, 5]}
+
+
+def test_nested_array_init_errors():
+    for init in ('[[1, 2],]', '[[]]', '[[1, 2]', '[2([])]', '[[1, 2]]]', '[1, [2, 3'):
+        warns, rc = check_program(
+            f'PROGRAM p VAR a : ARRAY[0..1, 0..1] OF INT := {init}; END_VAR a[0, 0] := 1; END_PROGRAM')
+        e = _syntax_errors(warns)
+        assert rc == 1 and len(e) == 1 and e[0].id == 'ParserError', (init, warns)
+        with DumpManager('stdin.dump.json'):
+            pass

@@ -62,6 +62,7 @@
 - `PLCOPEN-CP17`: fix false positives for parameters that are read or written only through a field or an element (`inp.f`, `out[i].f := x`); report writes to a field of an input parameter
 - `PLCOPEN-CP26`: count writes to a field or an element of a `VAR_EXTERNAL` variable
 - `OutOfBounds`: check subscripts on reads (`x := a[9]`) and when a field access follows (`a[9].f`)
+- Parser: accept nested array initializers (`[[1, 2], [3, 4]]`, `[2([1, 2])]`); the values are flattened in row-major order
 
 ## 0.4.0 (2022-02-26)
 
