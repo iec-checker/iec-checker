@@ -74,6 +74,7 @@
 - Parser: build an output assignment `fb(Q => v)` as `Q SENDTO v`; it was `v SENDTO v`, so the output parameter was lost. `PLCOPEN-CP25` no longer compares the output parameter with a caller variable of the same name
 - CLI: `-` reads the whole program from stdin; only its first line was read, so a multi-line program failed and the rest of the input was ignored. `--interactive` still reads one line
 - Parser: accept empty `THEN`, `ELSIF`, `ELSE` branches, `CASE` arms and loop bodies (3rd edition `stmt_list`); in the CFG an empty body passes control on (an empty `REPEAT` body crashed the CFG builder)
+- Parser: accept anonymous enumerations in variable declarations (`mode : (IDLE, RUN) := IDLE;`)
 
 ## 0.4.0 (2022-02-26)
 

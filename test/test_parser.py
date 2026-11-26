@@ -1356,3 +1356,22 @@ def test_empty_statement_lists():
     assert rc == 1 and len(_syntax_errors(warns)) == 1, warns
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_inline_enum_var_decl():
+    """`var1_init_decl ::= var1_list ':' (... | enumerated_spec_init)`
+    (IEC 61131-3, B.1.4.3)."""
+    d = _dump_of(
+        """
+        PROGRAM p
+        VAR mode : (IDLE, RUN, STOP) := RUN; a, b : (OPEN, CLOSED); END_VAR
+        mode := STOP;
+        END_PROGRAM
+        """.replace('\n', ''))
+    vs = {v['var']['loc'][1]['name']: v for v in d['programs'][0]['variables']}
+    def enum(v):
+        t = v['ty_spec']
+        assert t[0] == 'DTyDeclEnumType', t
+        return ([e['elem_name'] for e in t[2]], t[3] and t[3]['elem_name'], v['was_init'])
+    assert enum(vs['MODE']) == (['IDLE', 'RUN', 'STOP'], 'RUN', True)
+    assert enum(vs['A']) == enum(vs['B']) == (['OPEN', 'CLOSED'], None, False)

@@ -2235,6 +2235,17 @@ let var_decl :=
       end)
   }
   (* | var_names = separated_nonempty_list(T_COMMA, variable_name); T_COLON; str_var_decl; <> *)
+  | var_names = separated_nonempty_list(T_COMMA, variable_name); T_COLON; specs = enum_spec_init;
+  {
+    let (element_specs, default_value) = specs in
+    let spec = Syntax.DTyDeclEnumType(None, element_specs, default_value) in
+    List.map
+      var_names
+      ~f:(fun (n, ti) -> begin
+        let var = Syntax.VarDecl.create ~ty_spec:(Some(spec)) (mk_var_use n ti) in
+        Syntax.VarDecl.set_was_init var (Option.is_some default_value)
+      end)
+  }
   | var_names = separated_nonempty_list(T_COMMA, variable_name); T_COLON;
       ty = int_type_name; T_LPAREN; s = subrange; T_RPAREN; init = optional_assign(signed_int);
   {
