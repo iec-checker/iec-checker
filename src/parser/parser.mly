@@ -1884,6 +1884,9 @@ let func_call :=
     Syntax.StmFuncCall(ti, f, stmts)
   }
 
+let stmt_list_opt :=
+  | sl_opt = option(stmt_list); { stmt_list_of_option sl_opt }
+
 let stmt_list :=
   | s = stmt; option(T_SEMICOLON);
   { [s] }
@@ -1992,22 +1995,22 @@ let selection_stmt :=
   | ~ = case_stmt; <>
 
 let if_stmt :=
-  | ti = T_IF; e = expression; T_THEN; ifs = stmt_list; T_END_IF;
+  | ti = T_IF; e = expression; T_THEN; ifs = stmt_list_opt; T_END_IF;
   {
     let eti = Syntax.expr_get_ti e in
     Syntax.StmIf(ti, Syntax.StmExpr(eti, e), ifs, [], [])
   }
-  | ti = T_IF; e = expression; T_THEN; ifs = stmt_list; T_ELSE; elses = stmt_list; T_END_IF;
+  | ti = T_IF; e = expression; T_THEN; ifs = stmt_list_opt; T_ELSE; elses = stmt_list_opt; T_END_IF;
   {
     let eti = Syntax.expr_get_ti e in
     Syntax.StmIf(ti, Syntax.StmExpr(eti, e), ifs, [], elses)
   }
-  | ti = T_IF; e = expression; T_THEN; ifs = stmt_list; elsifs = if_stmt_elsif_list; T_END_IF;
+  | ti = T_IF; e = expression; T_THEN; ifs = stmt_list_opt; elsifs = if_stmt_elsif_list; T_END_IF;
   {
     let eti = Syntax.expr_get_ti e in
     Syntax.StmIf(ti, Syntax.StmExpr(eti, e), ifs, elsifs, [])
   }
-  | ti = T_IF; e = expression; T_THEN; ifs = stmt_list; elsifs = if_stmt_elsif_list; T_ELSE; elses = stmt_list; T_END_IF;
+  | ti = T_IF; e = expression; T_THEN; ifs = stmt_list_opt; elsifs = if_stmt_elsif_list; T_ELSE; elses = stmt_list_opt; T_END_IF;
   {
     let eti = Syntax.expr_get_ti e in
     Syntax.StmIf(ti, Syntax.StmExpr(eti, e), ifs, elsifs, elses)
@@ -2015,12 +2018,12 @@ let if_stmt :=
 
 (* Helper rule for if_stmt *)
 let if_stmt_elsif_list :=
-  | ti = T_ELSIF; cond_e = expression; T_THEN; stmts = stmt_list;
+  | ti = T_ELSIF; cond_e = expression; T_THEN; stmts = stmt_list_opt;
   {
     let eti = Syntax.expr_get_ti cond_e in
     [Syntax.StmElsif(ti, Syntax.StmExpr(eti, cond_e), stmts)]
   }
-  | elsifs = if_stmt_elsif_list; ti = T_ELSIF; cond_e = expression; T_THEN; stmts = stmt_list;
+  | elsifs = if_stmt_elsif_list; ti = T_ELSIF; cond_e = expression; T_THEN; stmts = stmt_list_opt;
   {
     let eti = Syntax.expr_get_ti cond_e in
     let elsif = Syntax.StmElsif(ti, Syntax.StmExpr(eti, cond_e), stmts) in
@@ -2028,7 +2031,7 @@ let if_stmt_elsif_list :=
   }
 
 let case_stmt :=
-  | ti = T_CASE; e = expression; T_OF; css = case_selections; T_ELSE; sl = stmt_list; T_END_CASE;
+  | ti = T_CASE; e = expression; T_OF; css = case_selections; T_ELSE; sl = stmt_list_opt; T_END_CASE;
   {
     let eti = Syntax.expr_get_ti e in
     Syntax.StmCase(ti, Syntax.StmExpr(eti, e), css, sl)
@@ -2043,15 +2046,15 @@ let case_stmt :=
    the next statement or the next enum label, and only the token after it decides. *)
 let case_selections :=
   | { [] }
-  | case = case_list; T_COLON; s = stmt; option(T_SEMICOLON); t = case_selection_tail;
-  { let (body, css) = t in Syntax.{ case; body = s :: body } :: css }
+  | case = case_list; T_COLON; t = case_selection_tail;
+  { let (body, css) = t in Syntax.{ case; body } :: css }
 
 let case_selection_tail :=
   | { ([], []) }
   | s = stmt; option(T_SEMICOLON); t = case_selection_tail;
   { let (body, css) = t in (s :: body, css) }
-  | case = case_list; T_COLON; s = stmt; option(T_SEMICOLON); t = case_selection_tail;
-  { let (body, css) = t in ([], Syntax.{ case; body = s :: body } :: css) }
+  | case = case_list; T_COLON; t = case_selection_tail;
+  { let (body, css) = t in ([], Syntax.{ case; body } :: css) }
 
 let case_list :=
   | ~ = separated_nonempty_list(T_COMMA, case_list_elem); <>
@@ -2076,7 +2079,7 @@ let iteration_stmt :=
   | ~ = T_CONTINUE; <Syntax.StmContinue>
 
 let for_stmt :=
-  | ti = T_FOR; cv = control_variable; T_ASSIGN; fl = for_list; T_DO; sl = stmt_list; T_END_FOR;
+  | ti = T_FOR; cv = control_variable; T_ASSIGN; fl = for_list; T_DO; sl = stmt_list_opt; T_END_FOR;
   {
     let (e_start, e_end, e_step) = fl in
     let ctrl_assign_stmt =
@@ -2107,14 +2110,14 @@ let for_list :=
   }
 
 let while_stmt :=
-  | ti = T_WHILE; e = expression; T_DO; sl = stmt_list; T_END_WHILE;
+  | ti = T_WHILE; e = expression; T_DO; sl = stmt_list_opt; T_END_WHILE;
   {
     let eti = Syntax.expr_get_ti e in
     Syntax.StmWhile(ti, Syntax.StmExpr(eti, e), sl)
   }
 
 let repeat_stmt :=
-  | ti = T_REPEAT; sl = stmt_list; T_UNTIL; e = expression; T_END_REPEAT;
+  | ti = T_REPEAT; sl = stmt_list_opt; T_UNTIL; e = expression; T_END_REPEAT;
   {
     let eti = Syntax.expr_get_ti e in
     Syntax.StmRepeat(ti, sl, Syntax.StmExpr(eti, e))

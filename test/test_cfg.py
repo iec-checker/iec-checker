@@ -868,3 +868,28 @@ def test_cfg_exit_continue():
         assert bbs[7].type == "BBExit"
         assert bbs[7].preds == {0, 2}
         assert bbs[7].succs == set()
+
+
+def _cfg_edges(program):
+    checker_warnings, rc = check_program(program.replace('\n', ''))
+    assert rc == 0, checker_warnings
+    with DumpManager('stdin.dump.json') as dm:
+        bbs = dm.scheme.cfgs[0].basic_blocks
+        return {bb.id: (bb.preds, bb.succs) for bb in bbs}
+
+
+def test_cfg_empty_bodies_pass_control_on():
+    """An empty branch, CASE arm or loop body passes control on."""
+    decl = 'PROGRAM p VAR x, y, i : INT; b : BOOL; END_VAR '
+    # The statement after the IF is reached from the condition (empty THEN)
+    # and from the ELSE branch.
+    e = _cfg_edges(decl + 'IF b THEN ELSE x := 1; END_IF; y := 2; END_PROGRAM')
+    assert e == {0: (set(), {1, 2}), 1: ({0}, {2}), 2: ({0, 1}, set())}, e
+    # An empty loop body: the loop control block loops on itself and exits.
+    for loop in ('FOR i := 1 TO 3 DO END_FOR;', 'WHILE b DO END_WHILE;',
+                 'REPEAT UNTIL b END_REPEAT;'):
+        e = _cfg_edges(decl + loop + ' y := 2; END_PROGRAM')
+        assert e == {0: ({0}, {0, 1}), 1: ({0}, set())}, (loop, e)
+    # The empty arm `1:` goes to the statement after the CASE.
+    e = _cfg_edges(decl + 'CASE x OF 1: 2: y := 3; END_CASE; y := 2; END_PROGRAM')
+    assert e[1][1] == {2, 4} and e[4][0] == {1, 2, 3}, e

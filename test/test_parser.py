@@ -1306,3 +1306,53 @@ def test_output_assignment_source():
     got = [sendto(a) for c in calls for a in c if a['stmt'][2][3] == ['SENDTO']]
     assert got == [('Q', 'Q', 'DONE', False), ('ET', 'ET', 'SPENT', False),
                    ('Q', 'Q', 'IDLE', True)], got
+
+
+def _find_stmts(node, tag):
+    if isinstance(node, list):
+        if node and node[0] == tag:
+            yield node
+        for c in node:
+            yield from _find_stmts(c, tag)
+    elif isinstance(node, dict):
+        for c in node.values():
+            yield from _find_stmts(c, tag)
+
+
+def test_empty_statement_lists():
+    """Branches, CASE arms and loop bodies may be empty (IEC 61131-3 3rd ed.,
+    `stmt_list ::= ( stmt ? ';' )*`)."""
+    d = _dump_of(
+        """
+        PROGRAM p
+        VAR x, i : INT; b : BOOL; END_VAR
+        IF b THEN
+        ELSIF x = 1 THEN
+        ELSE
+        END_IF;
+        IF b THEN (* nothing yet *) ELSE x := 1; END_IF;
+        CASE x OF
+          1:
+          2: x := 3;
+          3, 4:
+        ELSE
+        END_CASE;
+        CASE x OF 5: ELSE x := 0; END_CASE;
+        FOR i := 1 TO 3 DO END_FOR;
+        WHILE b DO END_WHILE;
+        REPEAT UNTIL b END_REPEAT;
+        END_PROGRAM
+        """.replace('\n', ''))
+    ifs = list(_find_stmts(d, 'If'))
+    assert [(len(f[3]), [len(e[3]) for e in f[4]], len(f[5])) for f in ifs] == \
+        [(0, [0], 0), (0, [], 1)], ifs
+    cases = list(_find_case_stmts(d))
+    assert [[len(s['body']) for s in c[3]] for c in cases] == [[0, 1, 0], [0]]
+    assert [len(c[4]) for c in cases] == [0, 1]
+    assert [len(f[1][2]) for f in _find_stmts(d, 'For')] == [0]
+    assert [len(f[3]) for f in _find_stmts(d, 'While')] == [0]
+    assert [len(f[2]) for f in _find_stmts(d, 'Repeat')] == [0]
+    warns, rc = check_program('PROGRAM p VAR b : BOOL; END_VAR IF b THEN END_PROGRAM')
+    assert rc == 1 and len(_syntax_errors(warns)) == 1, warns
+    with DumpManager('stdin.dump.json'):
+        pass

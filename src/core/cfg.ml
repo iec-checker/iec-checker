@@ -253,6 +253,17 @@ let fill_bbs_map (cfg : t) (stmts : S.statement list) : (unit) =
         >>| mk_body_bbs_tail
         |> unwrap_list
       in
+      (* An empty body passes control on, unlike an empty argument list of a
+         call, which [mk_body_bbs] gets too. *)
+      let mk_branch_bbs stmts preds =
+        match stmts with
+        | [] -> preds
+        | _ -> mk_body_bbs stmts preds
+      in
+      let dedup ids =
+        List.fold_left ids ~init:[] ~f:(fun acc id ->
+            if List.mem acc id ~equal:Int.equal then acc else acc @ [id])
+      in
       (** [mk_cond_bbs cond_stmt] Process condition statement: link condition
           with control basic block and add nested statements (if exists). *)
       let mk_cond_bbs ?(pred_ids=bbs_pred_ids) cond_stmt =
@@ -292,7 +303,7 @@ let fill_bbs_map (cfg : t) (stmts : S.statement list) : (unit) =
           let cond_last_ids = mk_cond_bbs cond_stmt in
 
           (* Create basic blocks for [body_stmts]. *)
-          let body_last_ids = mk_body_bbs body_stmts cond_last_ids in
+          let body_last_ids = mk_branch_bbs body_stmts cond_last_ids in
 
           (cond_last_ids @ body_last_ids, None)
         end
@@ -302,7 +313,7 @@ let fill_bbs_map (cfg : t) (stmts : S.statement list) : (unit) =
           let cond_last_ids = mk_cond_bbs cond_stmt in
 
           (* Create basic blocks for [body_stmts]. *)
-          let body_last_ids = mk_body_bbs body_stmts cond_last_ids in
+          let body_last_ids = mk_branch_bbs body_stmts cond_last_ids in
 
           (* Create basic blocks for [elsif_stmts]. *)
           let (elsif_last_ids, elsif_last_bb_ids) =
@@ -335,7 +346,7 @@ let fill_bbs_map (cfg : t) (stmts : S.statement list) : (unit) =
             | _ -> []
           in
 
-          ((cond_last_ids @ body_last_ids @ elsif_last_ids @ else_last_ids), None)
+          (dedup (cond_last_ids @ body_last_ids @ elsif_last_ids @ else_last_ids), None)
         end
       | S.StmCase (_, cond_stmt, case_sels, else_stmts) ->
         begin
@@ -359,7 +370,7 @@ let fill_bbs_map (cfg : t) (stmts : S.statement list) : (unit) =
                       mk_body_bbs case_sel.case acc_last_ids
                     in
                     let body_last_ids =
-                      mk_body_bbs case_sel.body case_last_ids
+                      mk_branch_bbs case_sel.body case_last_ids
                     in
                     (acc_ids @ body_last_ids, case_last_ids)
                   end)
@@ -375,7 +386,7 @@ let fill_bbs_map (cfg : t) (stmts : S.statement list) : (unit) =
             | _ -> []
           in
 
-          (cond_last_ids @ cs_last_ids @ else_last_ids, None)
+          (dedup (cond_last_ids @ cs_last_ids @ else_last_ids), None)
         end
       | S.StmFor (_, ctrl, body_stmts) ->
         begin
@@ -391,7 +402,7 @@ let fill_bbs_map (cfg : t) (stmts : S.statement list) : (unit) =
           assert (phys_equal 1 (List.length ctrl_last_ids)); (* always single assignment stmt *)
 
           (* Create basic blocks for [body_stmts]. *)
-          let body_last_ids = mk_body_bbs body_stmts ctrl_last_ids in
+          let body_last_ids = mk_branch_bbs body_stmts ctrl_last_ids in
 
           (* Link the last body statements with a FOR control statement. *)
           link_preds_by_id for_bb_id body_last_ids;
@@ -420,7 +431,7 @@ let fill_bbs_map (cfg : t) (stmts : S.statement list) : (unit) =
           assert (phys_equal 1 (List.length cond_last_ids)); (* always single expression stmt *)
 
           (* Create basic blocks for [body_stmts]. *)
-          let body_last_ids = mk_body_bbs body_stmts cond_last_ids in
+          let body_last_ids = mk_branch_bbs body_stmts cond_last_ids in
 
           (* Link the last body statements with a WHILE control statement. *)
           link_preds_by_id while_bb_id body_last_ids;
@@ -445,7 +456,7 @@ let fill_bbs_map (cfg : t) (stmts : S.statement list) : (unit) =
           Stack.push loop_ctrl_stack repeat_bb_id;
 
           (* Create basic blocks for [body_stmts]. *)
-          let body_last_ids = mk_body_bbs body_stmts [repeat_bb_id] in
+          let body_last_ids = mk_branch_bbs body_stmts [repeat_bb_id] in
 
           (* Create basic block for [cond_stmt]. *)
           let cond_last_ids = mk_cond_bbs cond_stmt ~pred_ids:(body_last_ids) in
