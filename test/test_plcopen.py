@@ -88,6 +88,32 @@ def test_cp4_same_address_and_memory_areas():
         pass
 
 
+def test_direct_variable_names_in_messages():
+    """A direct variable is `%` + location prefix + size prefix + address
+    (IEC 61131-3, 2.4.1.1): `%QW3`, not `%WQ3`."""
+    warns, rc = check_program(
+        """PROGRAM p
+        VAR
+          a AT %MW10 : INT;
+          b AT %MW10 : INT;
+          r : INT := 0;
+        END_VAR
+        %QW3 := r;
+        %MD4.1 := r;
+        a := b + r;
+        END_PROGRAM
+        """)
+    assert rc == 0, warns
+    cp4 = {w.msg for w in filter_warns(warns, 'PLCOPEN-CP4')}
+    assert cp4 == {'Address of direct variable %MW10 (size 2) should not '
+                   'overlap with direct variable %MW10'}, cp4
+    n1 = sorted(w.msg for w in filter_warns(warns, 'PLCOPEN-N1'))
+    assert n1 == ['Avoid hardcoded physical address %MD4.1 in code',
+                  'Avoid hardcoded physical address %QW3 in code'], n1
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
 def test_cp6():
     f = 'st/plcopen-cp6.st'
     fdump = f'{f}.dump.json'

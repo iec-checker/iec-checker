@@ -204,7 +204,7 @@ module DirVar = struct
       | Some(v) -> (size_to_string v)
       | None -> ""
     in
-    Printf.sprintf "%%%s%s%s" sz_str loc_str (path_to_string t.path)
+    Printf.sprintf "%%%s%s%s" loc_str sz_str (path_to_string t.path)
 
   let to_yojson t = to_yojson t
   let get_name var = to_string var
