@@ -8,6 +8,11 @@ let is_global vd =
   | Some (S.VarDecl.VarGlobal _) -> true
   | _ -> false
 
+let is_external vd =
+  match S.VarDecl.get_attr vd with
+  | Some (S.VarDecl.VarExternal _) -> true
+  | _ -> false
+
 let collect_globals elems =
   List.concat_map elems ~f:(fun elem ->
       AU.get_var_decls elem
@@ -18,7 +23,7 @@ let collect_globals elems =
 let check_elem globals elem =
   AU.get_var_decls elem
   |> List.filter_map ~f:(fun vd ->
-      if is_global vd then None
+      if is_global vd || is_external vd then None
       else
         let name = S.VarDecl.get_var_name vd in
         if Set.mem globals name then

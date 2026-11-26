@@ -211,6 +211,33 @@ def test_n4():
         pass
 
 
+def test_n5_var_external_is_not_a_local():
+    """`VAR_EXTERNAL` refers to the global: it shadows nothing (IEC 61131-3,
+    2.4.3, table 16a)."""
+    cfg = """
+        CONFIGURATION plant
+          VAR_GLOBAL limit : INT := 100; END_VAR
+          RESOURCE r ON PLC
+            TASK t(INTERVAL := T#10ms, PRIORITY := 1);
+            PROGRAM main WITH t : p;
+          END_RESOURCE
+        END_CONFIGURATION
+        """
+    for section, expected in (('VAR_EXTERNAL limit : INT; END_VAR', 0),
+                              ('VAR limit : INT := 0; END_VAR', 1)):
+        warns, rc = check_program((cfg + f"""
+            PROGRAM p
+            {section}
+            VAR x : INT := 0; END_VAR
+            x := limit;
+            END_PROGRAM
+            """).replace('\n', ''))
+        assert rc == 0, warns
+        assert len(filter_warns(warns, 'PLCOPEN-N5')) == expected, (section, warns)
+    with DumpManager('stdin.dump.json'):
+        pass
+
+
 def test_n5():
     f = 'st/plcopen-n5.st'
     fdump = f'{f}.dump.json'
