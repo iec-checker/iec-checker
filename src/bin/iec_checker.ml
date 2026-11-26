@@ -92,8 +92,13 @@ let parse_with_error ?(origin=SrcNone) (lexbuf: Lexing.lexbuf) : parse_results =
   | e ->
     [], [(W.mk_from_lexbuf lexbuf "UnknownError" (Exn.to_string e))]
 
-let parse_stdin () : parse_results option =
-  match In_channel.input_line In_channel.stdin with
+let parse_stdin ~whole : parse_results option =
+  let code_opt =
+    if whole then
+      match In_channel.input_all In_channel.stdin with "" -> None | s -> Some s
+    else In_channel.input_line In_channel.stdin
+  in
+  match code_opt with
   | None -> None
   | Some code -> begin
       let lexbuf = Lexing.from_string code in
@@ -200,7 +205,7 @@ let collect_paths paths in_fmt =
 let start_repl interactive =
   if interactive then Printf.printf "> ";
   Out_channel.flush stdout;
-  parse_stdin ()
+  parse_stdin ~whole:(not interactive)
 
 (** [parse_file] Parse file with the given path. *)
 let parse_file path in_fmt verbose : parse_results option =

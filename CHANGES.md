@@ -72,6 +72,7 @@
 - Parser: accept `STRING(n)` and `WSTRING(n)` as CODESYS and TwinCAT write the string length (standard: `STRING[n]`); listed on the Standard Extensions page
 - Parser: accept several `VAR_GLOBAL` sections in a `CONFIGURATION` or `RESOURCE` (e.g. `VAR_GLOBAL CONSTANT` next to `VAR_GLOBAL`), as Beremiz generates them; listed on the Standard Extensions page
 - Parser: build an output assignment `fb(Q => v)` as `Q SENDTO v`; it was `v SENDTO v`, so the output parameter was lost. `PLCOPEN-CP25` no longer compares the output parameter with a caller variable of the same name
+- CLI: `-` reads the whole program from stdin; only its first line was read, so a multi-line program failed and the rest of the input was ignored. `--interactive` still reads one line
 
 ## 0.4.0 (2022-02-26)
 
