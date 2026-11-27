@@ -12,11 +12,28 @@ let str_len = function
   | S.WCHAR l   -> l
   | _ -> assert false
 
+let is_wide = function
+  | S.WSTRING _ | S.WCHAR _ -> true
+  | _ -> false
+
+let literal_length ~wide s =
+  let n = String.length s in
+  let hex_at i len = i + len <= n && String.for_all (String.sub s ~pos:i ~len) ~f:Char.is_hex_digit in
+  let rec go i acc =
+    if i >= n then acc
+    else if Char.equal s.[i] '$' then
+      let skip = if wide && hex_at (i + 1) 4 then 5 else if hex_at (i + 1) 2 then 3 else 2 in
+      go (i + skip) (acc + 1)
+    else if Int.equal (Char.to_int s.[i] land 0xC0) 0x80 then go (i + 1) acc
+    else go (i + 1) (acc + 1)
+  in
+  go 0 0
+
 (** Compare length of declared string with initializer string size. *)
 let check_str_init_size ty_init init_expr =
   let check_length init_str =
     let ty_len = str_len ty_init in
-    let init_len = String.length init_str in
+    let init_len = literal_length ~wide:(is_wide ty_init) init_str in
     if ty_len <> init_len then Some (ty_len, init_len) else None
   in
   match init_expr with

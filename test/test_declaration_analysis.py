@@ -66,3 +66,28 @@ def test_subrange_var_initial_value():
     assert not filter_warns(warns, 'ParserError')
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_string_initializer_length_counts_escapes_as_one(tmp_path):
+    """`$$`, `$N`, `$'`, `$hh` and `$hhhh` are one character each (B.1.2.2), and so is a UTF-8 sequence."""
+    f = tmp_path / 'escapes.st'
+    f.write_bytes(
+        'PROGRAM p\n'
+        'VAR\n'
+        "  a : STRING[2] := ',$20';\n"
+        "  b : STRING[1] := '$$';\n"
+        "  c : STRING[2] := '$N$t';\n"
+        "  d : STRING[1] := '$'';\n"
+        '  e : WSTRING[1] := "$0041";\n'
+        '  g : WSTRING[2] := "äö";\n'
+        "  h : STRING[2] := '$$$$x';\n"
+        "  i : STRING[2] := '$41$42$43';\n"
+        '  j : WSTRING[1] := "$0041$0042";\n'
+        "  k : STRING[3] := '$4142';\n"
+        'END_VAR\n'
+        'a := b;\n'
+        'END_PROGRAM\n'.encode())
+    warns, rc = run_checker([str(f)])
+    assert rc == 0
+    got = sorted((w.linenr, w.msg.split('(')[1]) for w in filter_warns(warns, 'OutOfBounds'))
+    assert got == [(9, '3 > 2)'), (10, '3 > 2)'), (11, '2 > 1)')], got
