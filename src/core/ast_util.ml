@@ -103,7 +103,17 @@ let get_top_stmts = function
   | S.IECType _ -> []
 
 let get_stmts_num elem =
-  List.length (get_pou_stmts elem)
+  let rec count stmts = List.fold stmts ~init:0 ~f:(fun acc s -> acc + count_stmt s)
+  and count_stmt = function
+    | S.StmEmpty _ -> 0
+    | S.StmIf (_, _, body, elsifs, els) -> 1 + count body + count elsifs + count els
+    | S.StmElsif (_, _, body) -> 1 + count body
+    | S.StmCase (_, _, sels, els) ->
+      List.fold sels ~init:(1 + count els) ~f:(fun acc (cs : S.case_selection) -> acc + count cs.body)
+    | S.StmFor (_, _, body) | S.StmWhile (_, _, body) | S.StmRepeat (_, body, _) -> 1 + count body
+    | S.StmExpr _ | S.StmFuncCall _ | S.StmExit _ | S.StmContinue _ | S.StmReturn _ -> 1
+  in
+  count (get_top_stmts elem)
 
 let get_stmts elems =
   List.fold_left elems

@@ -15,8 +15,9 @@ val get_top_stmts : S.iec_library_element -> S.statement list
 (** [get_top_stmts pou] Non-recursively get statements from a [pou]. *)
 
 val get_stmts_num : S.iec_library_element -> int
-(** [get_stmts_num elem] Return number of statements from [elem] including
-    nested ones. *)
+(** [get_stmts_num elem] Number of statements in [elem], nested ones included.
+    Each [ELSIF] branch counts as one; conditions, call arguments and empty
+    statements do not count. *)
 
 val get_stmts : S.iec_library_element list -> S.statement list
 (** Collect all statements from each POU *)

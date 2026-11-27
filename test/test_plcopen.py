@@ -289,13 +289,19 @@ def test_n3():
         pass
 
 
-def test_cp9():
+def test_cp9(tmp_path):
+    """The PLCopen example: 18 statements, as the guideline counts, and McCabe 8; neither is over the defaults."""
     f = 'st/plcopen-cp9.st'
     fdump = f'{f}.dump.json'
     warns, rc = run_checker([f])
     assert rc == 0
-    cp9 = [w.msg for w in filter_warns(warns, 'PLCOPEN-CP9')]
-    assert cp9 == ['Code of function block CHARCURVE is too complex (27 statements)'], cp9
+    assert not filter_warns(warns, 'PLCOPEN-CP9'), warns
+    cfg = tmp_path / 'cfg.json'
+    cfg.write_text('{"thresholds": {"mccabe_complexity": 0, "statements_count": 0}}')
+    warns, rc = run_checker([f], args=['-c', str(cfg)])
+    cp9 = sorted(w.msg for w in filter_warns(warns, 'PLCOPEN-CP9'))
+    assert cp9 == ['Code of function block CHARCURVE is too complex (18 statements)',
+                   'Code of function block CHARCURVE is too complex (8 McCabe complexity)'], cp9
     with DumpManager(fdump):
         pass
 
@@ -361,6 +367,30 @@ def test_cp9_mccabe_counts_decisions(tmp_path):
     got = sorted(re.match(r'Code of [a-z ]+ (\w+) is too complex \((-?\d+) McCabe', w.msg).groups()
                  for w in filter_warns(warns, 'PLCOPEN-CP9') if 'McCabe' in w.msg)
     assert got == [('CHAIN', '4'), ('FLAT', '1'), ('IFS', '4'), ('LOOPS', '8')], got
+
+
+def test_cp9_statements_count(tmp_path):
+    """Each statement once, each ELSIF too; not conditions, call arguments, nested calls or empty statements."""
+    cfg = tmp_path / 'cfg.json'
+    cfg.write_text('{"thresholds": {"statements_count": 0}}')
+    f = tmp_path / 'stmts.st'
+    f.write_text(
+        'FUNCTION_BLOCK Mixer\n'
+        'VAR n : INT := 0; k : INT := 0; t : TON; END_VAR\n'
+        'n := ABS(n) + MAX(k, 1);\n'
+        't(IN := n > 0, PT := T#1s);\n'
+        ';\n'
+        'IF n > 1 THEN n := 1; ELSIF n > 2 THEN n := 2; k := 0; ELSE n := 3; END_IF;\n'
+        'CASE n OF 1, 2: n := 0; 3: k := 1; n := 1; ELSE n := 2; END_CASE;\n'
+        'FOR k := 1 TO 3 DO IF k = n THEN EXIT; END_IF; END_FOR;\n'
+        'WHILE n < 5 DO n := n + 1; END_WHILE;\n'
+        'REPEAT n := n - 1; UNTIL n < 0 END_REPEAT;\n'
+        'RETURN;\n'
+        'END_FUNCTION_BLOCK\n')
+    warns, rc = run_checker([str(f)], args=['-c', str(cfg)])
+    assert rc == 0
+    got = [w.msg for w in filter_warns(warns, 'PLCOPEN-CP9') if 'statements' in w.msg]
+    assert got == ['Code of function block MIXER is too complex (21 statements)'], got
 
 
 def test_names_of_types_classes_interfaces_and_programs_are_located(tmp_path):

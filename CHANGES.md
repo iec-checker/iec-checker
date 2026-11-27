@@ -95,6 +95,7 @@
 - PLCOPEN-CP9: McCabe complexity is 1 plus each `IF`, `ELSIF`, `CASE` selection, `FOR`, `WHILE` and `REPEAT`. It counted every control-flow edge twice and every call with arguments as a loop, so straight-line code scored -1 and ten `IF`s scored 36, not 11
 - PLCOPEN-CP3: instances of standard function blocks (`TON`, `CTU`, `R_TRIG`, ...) and of function blocks and classes declared in the input are no longer reported; an instance takes the initial values its type declares
 - Warnings about the name of a `TYPE`, `CLASS`, `INTERFACE` or `PROGRAM` (PLCOPEN-N4, N6, N8, N9, N10; CP9 for classes) and OutOfBounds warnings on declaration initializers are reported at the name; they were at `0:0`
+- PLCOPEN-CP9: the statement count counts each statement once, and each `ELSIF` branch; it also counted the conditions of `IF`/`ELSIF`/`WHILE`, call arguments and calls nested in expressions, and missed `FOR` and `CASE`. The PLCopen example `CHARCURVE` has 18 statements, as the guideline says; it was 27
 
 ## 0.4.0 (2022-02-26)
 
