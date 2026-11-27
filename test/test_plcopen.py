@@ -57,10 +57,41 @@ def test_cp3_no_initializer_allowed():
         """.replace('\n', ''))
     assert rc == 0, warns
     msgs = sorted(w.msg for w in filter_warns(warns, 'PLCOPEN-CP3'))
-    assert msgs == ['Variable C shall be initialized before being used',
-                    'Variable SCRATCH shall be initialized before being used'], msgs
+    assert msgs == ['Variable SCRATCH shall be initialized before being used'], msgs
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_cp3_skips_fb_and_class_instances(tmp_path):
+    """An instance takes the initial values its FB or class declares."""
+    f = tmp_path / 'instances.st'
+    f.write_text(
+        'PROGRAM line\n'
+        'VAR\n'
+        '  pulse : TON;\n'
+        '  hold : tof;\n'
+        '  parts : CTU_DINT;\n'
+        '  edge : R_TRIG;\n'
+        '  feeder : Feeder;\n'
+        '  gate : Gate;\n'
+        '  recipe : Recipe;\n'
+        '  remote : Lib_Drive;\n'
+        '  speed : INT;\n'
+        'END_VAR\n'
+        'pulse(IN := edge.Q, PT := T#1s);\n'
+        'feeder(go := pulse.Q);\n'
+        'END_PROGRAM\n'
+        'FUNCTION_BLOCK Feeder\n'
+        'VAR_INPUT go : BOOL := FALSE; END_VAR\n'
+        'END_FUNCTION_BLOCK\n'
+        'CLASS Gate\n'
+        'VAR open : BOOL := FALSE; END_VAR\n'
+        'END_CLASS\n'
+        'TYPE Recipe : STRUCT temp : INT := 0; END_STRUCT; END_TYPE\n')
+    warns, rc = run_checker([str(f)])
+    assert rc == 0
+    got = sorted(w.msg.split()[1] for w in filter_warns(warns, 'PLCOPEN-CP3'))
+    assert got == ['RECIPE', 'REMOTE', 'SPEED'], got
 
 
 def test_cp4_same_address_and_memory_areas():
