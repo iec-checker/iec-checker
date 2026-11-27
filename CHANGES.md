@@ -91,6 +91,7 @@
 - Parser: `REF(x)`, `NULL` and the `r^` dereference can be used in expressions, and `r^ := e` assigns through a reference (3rd edition); they worked only with `?=`. UnusedVariable counts `REF(x)`, also in a `REF_TO` initializer, as a use of `x`
 - PLCOPEN-CP8: `=` and `<>` are reported when either side is a variable declared `REAL` or `LREAL` in the POU (`x = y`, `x <> x`); only a REAL literal triggered it
 - Warnings are reported at the first character of the token they are about; the column was its last character (`counter` at 3-9 was reported at `:9`), while parser errors already used the first. A signed or typed literal (`-3`, `INT#5`, `T#1h2m`), a qualified enumeration value (`Mode#STOP`), `REF(x)` and a unary expression (`NOT x`, `-x`) are located at their first token. `col` of every `ti` in dumps changes the same way
+- PLCOPEN-CP8, PLCOPEN-CP28: reported at the `=` or `<>` operator, was the left operand (`IF speed = 1.5` at `:10`, was `:4`); so is PLCOPEN-CP25 on a comparison with `=` or `<>`. In dumps the `ti` of such a `Bin` expression is at the operator
 
 ## 0.4.0 (2022-02-26)
 

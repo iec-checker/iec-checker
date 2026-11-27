@@ -596,7 +596,7 @@ def test_columns_are_token_starts(tmp_path):
     ls = f.read_bytes()[3:].decode().split('\n')
 
     def tok(l, c):
-        m = re.match(r"%\w+(?:\.\d+)*|'[^']*'|NOT \w+|-?\w+#-?[\w.]+|-?\d+\.\d+|-?\w+", ls[l - 1][c - 1:])
+        m = re.match(r"%\w+(?:\.\d+)*|'[^']*'|=|NOT \w+|-?\w+#-?[\w.]+|-?\d+\.\d+|-?\w+", ls[l - 1][c - 1:])
         return (c == 1 or not re.match(r'\w\w', ls[l - 1][c - 2:])) and m and m.group(0)
 
     with open(f'{f}.dump.json') as fp:
@@ -605,7 +605,7 @@ def test_columns_are_token_starts(tmp_path):
         'plant', 'counter', 'speed', 'tick', 'label', 'mask', 'flag', 'bias',
         '0.0', 'T#0s', "'ab'", '16#FF', 'FALSE', '-3', 'IF', '1.5', 'MOD', '2', '1',
         '%IX0.1', '16#0F', 'WHILE', 'EXIT', 'T#1h2m', '-bias', 'INT#5',
-        'NOT flag', 'REAL#-2.5', 'shift', 'LOW', 'Gear#HIGH', 'Gear#LOW'}, got
+        'NOT flag', 'REAL#-2.5', 'shift', 'LOW', 'Gear#HIGH', 'Gear#LOW', '='}, got
     assert {(w.id, tok(w.linenr, w.column)) for w in warns} == {
         ('PLCOPEN-CP3', 'counter'), ('UnusedVariable', 'label'),
         ('PLCOPEN-L17', 'IF'), ('PLCOPEN-N1', '%IX0.1'),
@@ -629,7 +629,7 @@ def test_columns_of_warnings_in_one_statement(tmp_path):
     warns, rc = run_checker([str(f)])
     assert rc == 0
     assert {(w.id, w.linenr, w.column) for w in warns} == {
-        ('PLCOPEN-CP3', 3, 3), ('PLCOPEN-CP8', 6, 4), ('PLCOPEN-L17', 6, 1)}, warns
+        ('PLCOPEN-CP3', 3, 3), ('PLCOPEN-CP8', 6, 10), ('PLCOPEN-L17', 6, 1)}, warns
 
 
 def test_warning_and_syntax_error_columns_agree(tmp_path):
@@ -641,3 +641,23 @@ def test_warning_and_syntax_error_columns_agree(tmp_path):
     e, _ = run_checker([str(b)])
     assert [(x.linenr, x.column) for x in filter_warns(w, 'PLCOPEN-L17')] == [(2, 5)]
     assert [(x.linenr, x.column) for x in filter_warns(e, 'ParserError')] == [(2, 5)]
+
+
+def test_cp8_cp28_cp25_point_at_the_comparison_operator(tmp_path):
+    f = tmp_path / 'operators.st'
+    f.write_text(
+        'PROGRAM operators\n'
+        'VAR flow : REAL := 0.0; delay : TIME := T#0s; n : INT := 0; END_VAR\n'
+        'IF flow = 1.5 THEN n := 1; ELSE n := 2; END_IF;\n'
+        'IF (n > 0) AND (2.5 <> flow) THEN n := 3; ELSE n := 4; END_IF;\n'
+        'IF T#1h2m\n'
+        '     = delay THEN n := 5; ELSE n := 6; END_IF;\n'
+        'WHILE delay <> T#2s DO delay := delay + T#1s; END_WHILE;\n'
+        'IF n = flow THEN n := 7; ELSE n := 8; END_IF;\n'
+        'IF flow < 3.5 THEN n := 9; ELSE n := 10; END_IF;\n'
+        'END_PROGRAM\n')
+    warns, rc = run_checker([str(f)])
+    assert rc == 0
+    at = {i: sorted({(w.linenr, w.column) for w in filter_warns(warns, f'PLCOPEN-{i}')})
+          for i in ('CP8', 'CP28', 'CP25')}
+    assert at == {'CP8': [(3, 9), (4, 21), (8, 6)], 'CP28': [(6, 6), (7, 13)], 'CP25': [(8, 6)]}, at

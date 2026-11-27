@@ -1803,14 +1803,14 @@ let and_expr :=
 
 let compare_expr :=
   | ~ = equ_expr; <>
-  | e1 = compare_expr; T_EQ; e2 = equ_expr;
+  | e1 = compare_expr; _o = T_EQ; e2 = equ_expr;
   {
-    let ti = Syntax.expr_get_ti e1 in
+    let ti = TI.at $startpos(_o) (Syntax.expr_get_ti e1) in
     Syntax.ExprBin(ti, e1, Syntax.EQ, e2)
   }
-  | e1 = compare_expr; T_NEQ; e2= equ_expr;
+  | e1 = compare_expr; _o = T_NEQ; e2 = equ_expr;
   {
-    let ti = Syntax.expr_get_ti e1 in
+    let ti = TI.at $startpos(_o) (Syntax.expr_get_ti e1) in
     Syntax.ExprBin(ti, e1, Syntax.NEQ, e2)
   }
 
