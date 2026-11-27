@@ -363,6 +363,42 @@ def test_cp9_mccabe_counts_decisions(tmp_path):
     assert got == [('CHAIN', '4'), ('FLAT', '1'), ('IFS', '4'), ('LOOPS', '8')], got
 
 
+def test_names_of_types_classes_interfaces_and_programs_are_located(tmp_path):
+    """Warnings about a TYPE, CLASS, INTERFACE or PROGRAM name, and initializer warnings, are at the name."""
+    cfg = tmp_path / 'cfg.json'
+    cfg.write_text(json.dumps({
+        'detectors': {'enabled': ['PLCOPEN-N4', 'PLCOPEN-N6', 'PLCOPEN-N9', 'PLCOPEN-N10',
+                                  'PLCOPEN-CP9', 'DeclarationAnalysis']},
+        'thresholds': {'mccabe_complexity': 0},
+        'naming_conventions': {'min_length': 4, 'case': {'pou': 'lower_snake_case', 'type': 'lower_snake_case'},
+                               'udt_prefixes': {'ENUM': 'E_'}}}))
+    f = tmp_path / 'names.st'
+    f.write_text(
+        'TYPE\n'
+        '  Mode : (IDLE, RUN);\n'
+        '  Lvl : INT (0..10) := 20;\n'
+        'END_TYPE\n'
+        'INTERFACE Ifc\n'
+        'END_INTERFACE\n'
+        'CLASS Cls\n'
+        'END_CLASS\n'
+        'PROGRAM Pq\n'
+        'VAR mode : Mode := IDLE; text : STRING[2] := \'abc\'; END_VAR\n'
+        'mode := RUN;\n'
+        'END_PROGRAM\n')
+    warns, rc = run_checker([str(f)], args=['-c', str(cfg)])
+    assert rc == 0
+    got = sorted((w.id, w.linenr, w.column) for w in warns)
+    assert got == sorted([
+        ('PLCOPEN-N4', 2, 3), ('PLCOPEN-N10', 2, 3), ('PLCOPEN-N9', 2, 3), ('PLCOPEN-N9', 10, 5),
+        ('PLCOPEN-N4', 3, 3), ('PLCOPEN-N6', 3, 3), ('OutOfBounds', 3, 3),
+        ('PLCOPEN-N4', 5, 11), ('PLCOPEN-N6', 5, 11),
+        ('PLCOPEN-N4', 7, 7), ('PLCOPEN-N6', 7, 7), ('PLCOPEN-CP9', 7, 7),
+        ('PLCOPEN-N4', 9, 9), ('PLCOPEN-N6', 9, 9), ('PLCOPEN-CP9', 9, 9),
+        ('OutOfBounds', 10, 26),
+    ]), got
+
+
 def test_n1():
     f = 'st/plcopen-n1.st'
     fdump = f'{f}.dump.json'

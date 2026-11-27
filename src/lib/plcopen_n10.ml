@@ -14,9 +14,9 @@ let check_prefix prefixes kind name linenr col =
     Some (Warn.mk linenr col "PLCOPEN-N10" msg)
 
 let check_elem prefixes = function
-  | S.IECType (_, (name, spec)) ->
+  | S.IECType (_, ti, (name, spec)) ->
     let kind = S.dty_decl_spec_kind_to_string spec in
-    Option.to_list (check_prefix prefixes kind name 0 0)
+    Option.to_list (check_prefix prefixes kind name ti.linenr ti.col)
   | S.IECFunctionBlock (_, fb) ->
     let ti = S.FunctionBlock.get_ti fb.id in
     let name = S.FunctionBlock.get_name fb.id in

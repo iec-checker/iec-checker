@@ -36,7 +36,7 @@ let create_dump ~dst_file elements environments cfgs =
   in
   let types =
     List.fold_left elements
-      ~f:(fun acc e -> match e with S.IECType (_, ty) -> acc @ [ty] | _ -> acc)
+      ~f:(fun acc e -> match e with S.IECType (_, _, ty) -> acc @ [ty] | _ -> acc)
       ~init:[]
   in
   let scheme = {

@@ -826,13 +826,13 @@ let data_type_decl :=
   | T_TYPE; ~ = list(type_decl); T_END_TYPE; <>
 
 let type_decl :=
-  | ~ = simple_type_decl;   option(T_SEMICOLON); <>
-  | ~ = subrange_type_decl; option(T_SEMICOLON); <>
-  | ~ = enum_type_decl;     option(T_SEMICOLON); <>
-  | ~ = array_type_decl;    option(T_SEMICOLON); <>
-  | ~ = struct_type_decl;   option(T_SEMICOLON); <>
-  | ~ = str_type_decl;      option(T_SEMICOLON); <>
-  | ~ = ref_type_decl;      option(T_SEMICOLON); <>
+  | d = simple_type_decl;   option(T_SEMICOLON); { (TI.create_at $startpos (fst d), d) }
+  | d = subrange_type_decl; option(T_SEMICOLON); { (TI.create_at $startpos (fst d), d) }
+  | d = enum_type_decl;     option(T_SEMICOLON); { (TI.create_at $startpos (fst d), d) }
+  | d = array_type_decl;    option(T_SEMICOLON); { (TI.create_at $startpos (fst d), d) }
+  | d = struct_type_decl;   option(T_SEMICOLON); { (TI.create_at $startpos (fst d), d) }
+  | d = str_type_decl;      option(T_SEMICOLON); { (TI.create_at $startpos (fst d), d) }
+  | d = ref_type_decl;      option(T_SEMICOLON); { (TI.create_at $startpos (fst d), d) }
 
 (* Helper rules to resolve shift/reduce conflicts in types declaration *)
 (* let type_decl_helper :=                                     *)
@@ -1470,10 +1470,10 @@ let class_decl :=
       methods = method_decl *;
     T_END_CLASS;
   {
-    let (class_name, _) = id
+    let (class_name, class_ti) = id
     and interfaces = match ilist_opt with Some(ilist) -> ilist | None -> []
     in
-    Syntax.{ specifier; class_name; parent_name; interfaces; variables; methods; }
+    Syntax.{ specifier; class_name; class_ti; parent_name; interfaces; variables; methods; }
   }
 let class_specifier :=
   | T_FINAL; { Syntax.CFinal }
@@ -1497,11 +1497,12 @@ let interface_decl :=
       prototypes = method_prototype *;
     T_END_INTERFACE;
   {
-    let (name, _) = id
+    let (name, interface_ti) = id
     and parent_interfaces = match parents_opt with Some(p) -> p | None -> []
     in
     {
       Syntax.interface_name = name;
+      Syntax.interface_ti;
       Syntax.parents = parent_interfaces;
       Syntax.method_prototypes = prototypes;
     }

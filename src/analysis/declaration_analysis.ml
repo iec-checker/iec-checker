@@ -3,6 +3,7 @@ module AU = IECCheckerCore.Ast_util
 module S = IECCheckerCore.Syntax
 module Env = IECCheckerCore.Env
 module Warn = IECCheckerCore.Warn
+module TI = IECCheckerCore.Tok_info
 
 let str_len = function
   | S.STRING l  -> l
@@ -33,7 +34,7 @@ let check_str_init_size ty_init init_expr =
   | None -> None
 
 (** Search for errors in initial value in declaration of a string type *)
-let check_str_init_expr ty_init init_expr =
+let check_str_init_expr (ti : TI.t) ty_init init_expr =
   match check_str_init_size ty_init init_expr with
   | Some (len_decl, len_init) when (len_init > len_decl) ->
     let msg =
@@ -41,23 +42,23 @@ let check_str_init_expr ty_init init_expr =
         "Length of initialization string literal exceeds string length (%d > %d)"
         len_init len_decl
     in
-    let w = Warn.mk 0 0 "OutOfBounds" msg in
+    let w = Warn.mk ti.linenr ti.col "OutOfBounds" msg in
     [ w ]
   | Some _ -> [] (* no violations *)
   | None -> []
 
 (** Search for errors in subrange initialization *)
-let check_subrange_init_val ty_spec init_val =
+let check_subrange_init_val (ti : TI.t) ty_spec init_val =
   let (_, lb, ub) = ty_spec in
   if (init_val < lb) || (init_val > ub) then
     let msg =
       Printf.sprintf "Initial subrange value %d does not fit the specified range (%d .. %d)"
         init_val lb ub
-    in let w = Warn.mk 0 0 "OutOfBounds" msg in [ w ]
+    in let w = Warn.mk ti.linenr ti.col "OutOfBounds" msg in [ w ]
   else []
 
 (** Search for errors in array initialization. *)
-let check_array_init_val ty_name subranges inval_opt =
+let check_array_init_val (ti : TI.t) ty_name subranges inval_opt =
   match inval_opt with
   | None -> (* no initializer list *) []
   | Some (inlist) -> begin
@@ -68,22 +69,22 @@ let check_array_init_val ty_name subranges inval_opt =
             "%s: Array initializer list exceeds capacity. Last %d values will be lost."
             ty_name diff
         in
-        [(Warn.mk 0 0 "OutOfBounds" m)]
+        [(Warn.mk ti.linenr ti.col "OutOfBounds" m)]
       end
       else
         []
     end
 
-let check_ty_decl ty_name = function
+let check_ty_decl ti ty_name = function
   | S.DTyDeclSingleElement (ty_spec, init_expr) ->
     begin
       match ty_spec with
-      | S.DTySpecElementary ty_decl -> (check_str_init_expr ty_decl init_expr)
+      | S.DTySpecElementary ty_decl -> (check_str_init_expr ti ty_decl init_expr)
       | S.DTySpecSimple _ | S.DTySpecGeneric _ | S.DTySpecEnum _ -> []
     end
-  | S.DTyDeclSubrange (ty_spec, init_val) -> check_subrange_init_val ty_spec init_val
+  | S.DTyDeclSubrange (ty_spec, init_val) -> check_subrange_init_val ti ty_spec init_val
   | S.DTyDeclEnumType _ -> []
-  | S.DTyDeclArrayType (subranges, _, inval_opt) -> check_array_init_val ty_name subranges inval_opt
+  | S.DTyDeclArrayType (subranges, _, inval_opt) -> check_array_init_val ti ty_name subranges inval_opt
   | S.DTyDeclRefType _ -> []
   | S.DTyDeclStructType _ -> []
 
@@ -97,7 +98,7 @@ let check_var_decls pou =
           let ty_decl_opt = S.VarDecl.get_ty_spec var_decl
           and var_name = S.VarDecl.get_var_name var_decl in
           match ty_decl_opt with
-          | Some (ty_decl) -> acc @ (check_ty_decl var_name ty_decl)
+          | Some (ty_decl) -> acc @ (check_ty_decl (S.VarDecl.get_var_ti var_decl) var_name ty_decl)
           | None -> acc
         end)
 
@@ -105,7 +106,7 @@ let[@warning "-27"] run elements envs =
   List.fold_left elements
     ~f:(fun warns e ->
         let ws = match e with
-          | S.IECType (_, (ty_name, ty_spec)) -> check_ty_decl ty_name ty_spec
+          | S.IECType (_, ti, (ty_name, ty_spec)) -> check_ty_decl ti ty_name ty_spec
           | _ -> check_var_decls e
         in
         warns @ ws)

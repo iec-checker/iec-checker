@@ -94,6 +94,7 @@
 - PLCOPEN-CP8, PLCOPEN-CP28: reported at the `=` or `<>` operator, was the left operand (`IF speed = 1.5` at `:10`, was `:4`); so is PLCOPEN-CP25 on a comparison with `=` or `<>`. In dumps the `ti` of such a `Bin` expression is at the operator
 - PLCOPEN-CP9: McCabe complexity is 1 plus each `IF`, `ELSIF`, `CASE` selection, `FOR`, `WHILE` and `REPEAT`. It counted every control-flow edge twice and every call with arguments as a loop, so straight-line code scored -1 and ten `IF`s scored 36, not 11
 - PLCOPEN-CP3: instances of standard function blocks (`TON`, `CTU`, `R_TRIG`, ...) and of function blocks and classes declared in the input are no longer reported; an instance takes the initial values its type declares
+- Warnings about the name of a `TYPE`, `CLASS`, `INTERFACE` or `PROGRAM` (PLCOPEN-N4, N6, N8, N9, N10; CP9 for classes) and OutOfBounds warnings on declaration initializers are reported at the name; they were at `0:0`
 
 ## 0.4.0 (2022-02-26)
 

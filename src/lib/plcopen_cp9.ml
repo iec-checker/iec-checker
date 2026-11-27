@@ -11,7 +11,7 @@ let describe_pou = function
   | S.IECFunction (_, f) -> Some ("function " ^ S.Function.get_name f.id, Some (S.Function.get_ti f.id))
   | S.IECFunctionBlock (_, fb) ->
     Some ("function block " ^ S.FunctionBlock.get_name fb.id, Some (S.FunctionBlock.get_ti fb.id))
-  | S.IECClass (_, c) -> Some ("class " ^ c.class_name, None)
+  | S.IECClass (_, c) -> Some ("class " ^ c.class_name, Some c.class_ti)
   | _ -> None
 
 let mk_warn elem_opt metric =
