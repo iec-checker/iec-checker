@@ -45,6 +45,19 @@
     let tv = (fn v) in
     Syntax.CTimeValue(ti, tv)
 
+  let c_at p c =
+    let m = TI.at p in
+    match c with
+    | Syntax.CInteger (ti, t, v) -> Syntax.CInteger (m ti, t, v)
+    | Syntax.CBitString (ti, t, v) -> Syntax.CBitString (m ti, t, v)
+    | Syntax.CBool (ti, v) -> Syntax.CBool (m ti, v)
+    | Syntax.CReal (ti, t, v) -> Syntax.CReal (m ti, t, v)
+    | Syntax.CString (ti, v) -> Syntax.CString (m ti, v)
+    | Syntax.CPointer (ti, v) -> Syntax.CPointer (m ti, v)
+    | Syntax.CTimeValue (ti, v) -> Syntax.CTimeValue (m ti, v)
+    | Syntax.CRange (ti, l, u) -> Syntax.CRange (m ti, l, u)
+    | Syntax.CEnumValue (ti, v) -> Syntax.CEnumValue (m ti, v)
+
   let c_get_int = function
     | Syntax.CInteger (_, _, v) -> Some(v)
     | _ -> None
@@ -325,28 +338,29 @@ let library_element_declaration :=
 let constant :=
   | c = numeric_literal;
   {
-    let ti = Syntax.c_get_ti c in
-    Syntax.ExprConstant(ti, c)
+    let c = c_at $startpos c in
+    Syntax.ExprConstant(Syntax.c_get_ti c, c)
   }
   | c = char_literal;
   {
-    let ti = Syntax.c_get_ti c in
-    Syntax.ExprConstant(ti, c)
+    (* HACK: the lexer leaves the start position of a string token at its
+       closing quote, so the token's own [ti] is the only correct one. *)
+    Syntax.ExprConstant(Syntax.c_get_ti c, c)
   }
   | c = time_literal;
   {
-    let ti = Syntax.c_get_ti c in
-    Syntax.ExprConstant(ti, c)
+    let c = c_at $startpos c in
+    Syntax.ExprConstant(Syntax.c_get_ti c, c)
   }
   | c = bit_str_literal;
   {
-    let ti = Syntax.c_get_ti c in
-    Syntax.ExprConstant(ti, c)
+    let c = c_at $startpos c in
+    Syntax.ExprConstant(Syntax.c_get_ti c, c)
   }
   | c = bool_literal;
   {
-    let ti = Syntax.c_get_ti c in
-    Syntax.ExprConstant(ti, c)
+    let c = c_at $startpos c in
+    Syntax.ExprConstant(Syntax.c_get_ti c, c)
   }
 
 let numeric_literal :=
@@ -356,13 +370,13 @@ let numeric_literal :=
 let int_literal :=
   (* Only constants with type-prefix need to input a specific integer type for later inference *)
   | ty = int_type_name; T_SHARP; (v, ti) = raw_signed_int;
-  { cint_mk ~ty (v, ti) }
+  { c_at $startpos (cint_mk ~ty (v, ti)) }
   | ty = int_type_name; T_SHARP; (v, ti) = raw_binary_int;
-  { cint_mk ~ty (v, ti) }
+  { c_at $startpos (cint_mk ~ty (v, ti)) }
   | ty = int_type_name; T_SHARP; (v, ti) = raw_octal_int;
-  { cint_mk ~ty (v, ti) }
+  { c_at $startpos (cint_mk ~ty (v, ti)) }
   | ty = int_type_name; T_SHARP; (v, ti) = raw_hex_int;
-  { cint_mk ~ty (v, ti) }
+  { c_at $startpos (cint_mk ~ty (v, ti)) }
   | ~ = signed_int; <>
   | ~ = binary_int; <>
   | ~ = octal_int; <>
@@ -399,12 +413,12 @@ let signed_int :=
   | ~ = unsigned_int; <> 
   | T_PLUS; res = T_INTEGER;
   {
-    cint_mk res
+    c_at $startpos (cint_mk res)
   }
   | T_MINUS; res = T_INTEGER;
   {
     let (v, ti) = res in
-    cint_mk (-v, ti)
+    c_at $startpos (cint_mk (-v, ti))
   }
 
 let binary_int :=
@@ -1767,6 +1781,7 @@ let enum_value_const :=
   | qname; T_SHARP; id = T_IDENTIFIER;
   {
     let (name, ti) = id in
+    let ti = TI.at $startpos ti in
     Syntax.ExprConstant(ti, Syntax.CEnumValue(ti, name))
   }
 
@@ -1834,14 +1849,14 @@ let power_expr :=
 let unary_expr :=
   | op = unary_operator; e = primary_expr;
   {
-    let ti = Syntax.expr_get_ti e in
+    let ti = TI.at $startpos (Syntax.expr_get_ti e) in
     Syntax.ExprUn(ti, op, e)
   }
   (* Not through [unary_operator]: after `NOT x` in a call, the next token decides
      between an expression and the output form `NOT x => v`. *)
   | T_NOT; e = primary_expr;
   {
-    let ti = Syntax.expr_get_ti e in
+    let ti = TI.at $startpos (Syntax.expr_get_ti e) in
     Syntax.ExprUn(ti, Syntax.NOT, e)
   }
   | ~ = primary_expr; <>
@@ -1851,6 +1866,7 @@ let primary_expr :=
   | values = enum_value_use;
   {
     let (name, ti) = values in
+    let ti = TI.at $startpos ti in
     Syntax.ExprConstant(ti, Syntax.CEnumValue(ti, name))
   }
   | v = variable_access;
@@ -1913,10 +1929,10 @@ let operator_func_call :=
   }
 
 let operator_func_name :=
-  | T_MOD; { ("MOD", $endpos) }
-  | T_AND; { ("AND", $endpos) }
-  | T_OR;  { ("OR", $endpos) }
-  | T_XOR; { ("XOR", $endpos) }
+  | T_MOD; { ("MOD", $startpos) }
+  | T_AND; { ("AND", $startpos) }
+  | T_OR;  { ("OR", $startpos) }
+  | T_XOR; { ("XOR", $startpos) }
 
 let func_call :=
   | f = func_access; T_LPAREN; stmts = separated_list(T_COMMA, param_assign); T_RPAREN;
@@ -1974,7 +1990,7 @@ let ref_value_expr :=
   {
     let ti = match ref_val with
       | Syntax.RefNull | Syntax.RefFBInstance _ -> TI.create_dummy ()
-      | Syntax.RefSymVar sv -> Syntax.SymVar.get_ti sv
+      | Syntax.RefSymVar sv -> TI.at $startpos (Syntax.SymVar.get_ti sv)
     in
     Syntax.ExprConstant(ti, Syntax.CPointer(ti, ref_val))
   }

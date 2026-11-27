@@ -10,16 +10,18 @@ let next_id =
 
 let create lexbuf =
   let id = next_id () in
-  let linenr = lexbuf.Lexing.lex_curr_p.pos_lnum in
-  let col = lexbuf.Lexing.lex_curr_p.pos_cnum - lexbuf.Lexing.lex_curr_p.pos_bol in
-  { id; linenr; col; raw = "" }
+  let p = lexbuf.Lexing.lex_start_p in
+  { id; linenr = p.pos_lnum; col = p.pos_cnum - p.pos_bol + 1; raw = "" }
 
 let create_with_raw lexbuf raw =
   let ti = create lexbuf in
   { ti with raw }
 
-let create_at (p : Lexing.position) raw =
-  { id = next_id (); linenr = p.pos_lnum; col = p.pos_cnum - p.pos_bol; raw }
+let at (p : Lexing.position) ti =
+  { ti with linenr = p.pos_lnum; col = p.pos_cnum - p.pos_bol + 1 }
+
+let create_at p raw =
+  at p { id = next_id (); linenr = 0; col = 0; raw }
 
 let create_dummy () =
   let id = next_id () in

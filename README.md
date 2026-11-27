@@ -13,7 +13,7 @@ PLCOPEN-CP3: Variable X shall be initialized before being used
   See: https://iec-checker.github.io/docs/detectors/PLCOPEN-CP3
 
 PLCOPEN-CP13: POUs shall not call themselves directly or indirectly
-  --> program.st:8:30
+  --> program.st:8:22
   See: https://iec-checker.github.io/docs/detectors/PLCOPEN-CP13
 ```
 

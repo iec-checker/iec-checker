@@ -1,4 +1,5 @@
 """Tests for PLCOpen inspections."""
+import json
 import re
 import sys
 import os
@@ -181,7 +182,7 @@ def test_l17():
     checker_warnings, rc = run_checker([f])
     assert rc == 0
     l17_warns = filter_warns(checker_warnings, 'PLCOPEN-L17')
-    assert any(w.linenr == 10 and w.column == 4 for w in l17_warns)
+    assert any(w.linenr == 10 and w.column == 3 for w in l17_warns)
     with DumpManager(fdump):
         pass
 
@@ -204,8 +205,8 @@ def test_cp17():
     assert rc == 0
     cp17_warns = filter_warns(warns, 'PLCOPEN-CP17')
     expected = Counter([
-        (4, 21), (5, 25), (5, 25), (6, 25), (8, 17), (9, 26), (9, 26),
-        (10, 23), (12, 22), (12, 22), (17, 22), (18, 25), (25, 21),
+        (4, 5), (5, 5), (5, 5), (6, 5), (8, 5), (9, 5), (9, 5),
+        (10, 5), (12, 5), (12, 5), (17, 5), (18, 5), (25, 5),
     ])
     actual = Counter((w.linenr, w.column) for w in cp17_warns)
     assert actual == expected
@@ -252,7 +253,7 @@ def test_n3():
     checker_warnings, rc = run_checker([f])
     assert rc == 0
     n3_warns = filter_warns(checker_warnings, 'PLCOPEN-N3')
-    assert any(w.linenr == 6 and w.column == 7 for w in n3_warns)
+    assert any(w.linenr == 6 and w.column == 5 for w in n3_warns)
     with DumpManager(fdump):
         pass
 
@@ -555,3 +556,88 @@ def test_cp25_ignores_output_assignment_formals():
     assert not filter_warns(warns, 'PLCOPEN-CP25'), warns
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def _positions(n):
+    if isinstance(n, dict):
+        if 'linenr' in n and 'col' in n:
+            yield n['linenr'], n['col']
+        for v in n.values():
+            yield from _positions(v)
+    elif isinstance(n, list):
+        for v in n:
+            yield from _positions(v)
+
+
+def test_columns_are_token_starts(tmp_path):
+    f = tmp_path / 'columns.st'
+    f.write_bytes(
+        b'\xef\xbb\xbfPROGRAM plant\r\n'
+        b'VAR\r\n'
+        b'\tcounter : INT;\r\n'
+        b"  speed : REAL := 0.0; tick : TIME := T#0s; label : STRING := 'ab'; mask : WORD := 16#FF;\n"
+        b'  flag : BOOL := FALSE; bias : INT := -3; shift : Gear := LOW;\n'
+        b'END_VAR\n'
+        b'(* multi\n'
+        b'   line *) IF speed > 1.5 THEN\n'
+        b'  counter := MOD(counter, 2) + 1;\n'
+        b'END_IF;\n'
+        b'/* c */ flag := %IX0.1 AND mask > 16#0F;\n'
+        b'WHILE flag DO EXIT; END_WHILE;\n'
+        b'tick := tick + T#1h2m;\n'
+        b'bias := -bias + INT#5;\n'
+        b'flag := NOT flag;\n'
+        b'speed := REAL#-2.5;\n'
+        b'IF shift = Gear#HIGH THEN shift := Gear#LOW; ELSE shift := Gear#HIGH; END_IF;\n'
+        b'END_PROGRAM\n'
+        b'TYPE Gear : (LOW, HIGH); END_TYPE\n')
+    warns, rc = run_checker([str(f)])
+    assert rc == 0
+    ls = f.read_bytes()[3:].decode().split('\n')
+
+    def tok(l, c):
+        m = re.match(r"%\w+(?:\.\d+)*|'[^']*'|NOT \w+|-?\w+#-?[\w.]+|-?\d+\.\d+|-?\w+", ls[l - 1][c - 1:])
+        return (c == 1 or not re.match(r'\w\w', ls[l - 1][c - 2:])) and m and m.group(0)
+
+    with open(f'{f}.dump.json') as fp:
+        got = {tok(l, c) for l, c in _positions(json.load(fp)) if l > 0}
+    assert got == {
+        'plant', 'counter', 'speed', 'tick', 'label', 'mask', 'flag', 'bias',
+        '0.0', 'T#0s', "'ab'", '16#FF', 'FALSE', '-3', 'IF', '1.5', 'MOD', '2', '1',
+        '%IX0.1', '16#0F', 'WHILE', 'EXIT', 'T#1h2m', '-bias', 'INT#5',
+        'NOT flag', 'REAL#-2.5', 'shift', 'LOW', 'Gear#HIGH', 'Gear#LOW'}, got
+    assert {(w.id, tok(w.linenr, w.column)) for w in warns} == {
+        ('PLCOPEN-CP3', 'counter'), ('UnusedVariable', 'label'),
+        ('PLCOPEN-L17', 'IF'), ('PLCOPEN-N1', '%IX0.1'),
+        ('PLCOPEN-L10', 'EXIT')}, warns
+    assert [(w.linenr, w.column) for w in filter_warns(warns, 'PLCOPEN-CP3')] == [(3, 2)]
+    assert [(w.linenr, w.column) for w in filter_warns(warns, 'PLCOPEN-L17')] == [(8, 12)]
+
+
+def test_columns_of_warnings_in_one_statement(tmp_path):
+    f = tmp_path / 'mixer.st'
+    f.write_text(
+        'PROGRAM mixer\n'
+        'VAR\n'
+        '  level : INT;\n'
+        '  ratio : REAL := 0.0;\n'
+        'END_VAR\n'
+        'IF ratio = 2.5 THEN\n'
+        '  level := 1;\n'
+        'END_IF;\n'
+        'END_PROGRAM\n')
+    warns, rc = run_checker([str(f)])
+    assert rc == 0
+    assert {(w.id, w.linenr, w.column) for w in warns} == {
+        ('PLCOPEN-CP3', 3, 3), ('PLCOPEN-CP8', 6, 4), ('PLCOPEN-L17', 6, 1)}, warns
+
+
+def test_warning_and_syntax_error_columns_agree(tmp_path):
+    p = 'PROGRAM p VAR x : INT := 0; END_VAR\n    %s x := 1; END_IF;\nEND_PROGRAM\n'
+    a, b = tmp_path / 'a.st', tmp_path / 'b.st'
+    a.write_text(p % 'IF x > 0 THEN')
+    b.write_text(p % 'END_IF;')
+    w, _ = run_checker([str(a)])
+    e, _ = run_checker([str(b)])
+    assert [(x.linenr, x.column) for x in filter_warns(w, 'PLCOPEN-L17')] == [(2, 5)]
+    assert [(x.linenr, x.column) for x in filter_warns(e, 'ParserError')] == [(2, 5)]
