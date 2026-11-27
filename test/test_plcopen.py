@@ -263,7 +263,8 @@ def test_cp9():
     fdump = f'{f}.dump.json'
     warns, rc = run_checker([f])
     assert rc == 0
-    assert len(filter_warns(warns, 'PLCOPEN-CP9')) == 2
+    cp9 = [w.msg for w in filter_warns(warns, 'PLCOPEN-CP9')]
+    assert cp9 == ['Code of function block CHARCURVE is too complex (27 statements)'], cp9
     with DumpManager(fdump):
         pass
 
@@ -293,6 +294,42 @@ def test_cp9_reports_at_the_pou():
     ], got
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_cp9_mccabe_counts_decisions(tmp_path):
+    """1 plus each IF, ELSIF, CASE selection and loop; calls, RETURN and AND/OR add nothing."""
+    cfg = tmp_path / 'cfg.json'
+    cfg.write_text('{"thresholds": {"mccabe_complexity": 0}}')
+    f = tmp_path / 'mccabe.st'
+    f.write_text(
+        'FUNCTION Flat : INT\n'
+        'VAR_INPUT i : INT := 0; END_VAR\n'
+        'Flat := i + 1;\n'
+        'END_FUNCTION\n'
+        'PROGRAM Ifs\n'
+        'VAR n : INT := 0; a : BOOL := FALSE; END_VAR\n'
+        'IF n > 1 THEN n := 1; END_IF;\n'
+        'Flat(i := n);\n'
+        'IF a AND n > 2 OR NOT a THEN n := 2; END_IF;\n'
+        'Flat(i := 2);\n'
+        'IF n > 3 THEN n := 3; END_IF;\n'
+        'END_PROGRAM\n'
+        'FUNCTION_BLOCK Chain\n'
+        'VAR n : INT := 0; END_VAR\n'
+        'IF n = 1 THEN RETURN; ELSIF n = 2 THEN n := 0; ELSIF n = 3 THEN RETURN; ELSE n := 1; END_IF;\n'
+        'END_FUNCTION_BLOCK\n'
+        'FUNCTION_BLOCK Loops\n'
+        'VAR n : INT := 0; k : INT := 0; END_VAR\n'
+        'FOR k := 1 TO 3 DO IF k = n THEN EXIT; END_IF; END_FOR;\n'
+        'WHILE n < 5 DO n := n + 1; END_WHILE;\n'
+        'REPEAT n := n - 1; UNTIL n < 0 END_REPEAT;\n'
+        'CASE n OF 1, 2: n := 0; 3..4: n := 1; 5: n := 2; ELSE n := 3; END_CASE;\n'
+        'END_FUNCTION_BLOCK\n')
+    warns, rc = run_checker([str(f)], args=['-c', str(cfg)])
+    assert rc == 0
+    got = sorted(re.match(r'Code of [a-z ]+ (\w+) is too complex \((-?\d+) McCabe', w.msg).groups()
+                 for w in filter_warns(warns, 'PLCOPEN-CP9') if 'McCabe' in w.msg)
+    assert got == [('CHAIN', '4'), ('FLAT', '1'), ('IFS', '4'), ('LOOPS', '8')], got
 
 
 def test_n1():

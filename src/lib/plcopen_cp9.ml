@@ -22,11 +22,10 @@ let mk_warn elem_opt metric =
     Warn.mk 0 0 "PLCOPEN-CP9" (Printf.sprintf "Code of %s is too complex (%s)" what metric)
   | None -> Warn.mk 0 0 "PLCOPEN-CP9" (Printf.sprintf "Code is too complex (%s)" metric)
 
-let get_mccabe_violations elems cfg =
-  let cc = CC.eval_mccabe cfg in
-  if cc > Config.mccabe_complexity_threshold () then
-    let elem = List.find elems ~f:(fun e -> S.get_pou_id e = Cfg.get_pou_id cfg) in
-    [mk_warn elem (Printf.sprintf "%d McCabe complexity" cc)]
+let get_mccabe_violations elem =
+  let cc = CC.eval_mccabe elem in
+  if Option.is_some (describe_pou elem) && cc > Config.mccabe_complexity_threshold () then
+    [mk_warn (Some elem) (Printf.sprintf "%d McCabe complexity" cc)]
   else []
 
 let get_statements_num_violations elem =
@@ -35,11 +34,11 @@ let get_statements_num_violations elem =
     [mk_warn (Some elem) (Printf.sprintf "%d statements" stmts_num)]
   else []
 
-let do_check elems cfgs =
+let do_check elems =
   List.fold_left
-    cfgs
+    elems
     ~init:[]
-    ~f:(fun acc cfg -> acc @ (get_mccabe_violations elems cfg))
+    ~f:(fun acc elem -> acc @ (get_mccabe_violations elem))
   |> List.append
   @@ List.fold_left
     elems
@@ -52,6 +51,6 @@ let detector : Detector.t = {
   summary =
     "POUs that exceed McCabe or statement-count thresholds should be split.";
   doc_url = "https://iec-checker.github.io/docs/detectors/PLCOPEN-CP9";
-  check = (fun (i : Detector.inputs) -> do_check i.elements i.cfgs);
+  check = (fun (i : Detector.inputs) -> do_check i.elements);
 }
 
