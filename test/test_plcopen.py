@@ -519,6 +519,29 @@ def test_cp8_cp28_nested_comparisons(tmp_path):
     assert sorted(w.linenr for w in filter_warns(warns, 'PLCOPEN-CP28')) == [8, 9]
 
 
+def test_cp8_real_variables(tmp_path):
+    """A variable declared REAL or LREAL in the POU is enough, without a REAL literal."""
+    f = tmp_path / 'real_vars.st'
+    f.write_text(
+        'FUNCTION_BLOCK gauge\n'
+        'VAR_INPUT lo : LREAL := 0.0; hi : LREAL := 1.0; END_VAR\n'
+        'VAR_EXTERNAL g : REAL; END_VAR\n'
+        'VAR k : INT := 0; m : INT := 0; END_VAR\n'
+        'IF lo = hi THEN k := 1; END_IF;\n'
+        'IF lo <> lo THEN k := 2; END_IF;\n'
+        'IF k = 3 AND g <> hi THEN k := 3; END_IF;\n'
+        'IF k = m THEN k := 4; END_IF;\n'
+        'IF lo < hi THEN k := 5; END_IF;\n'
+        'END_FUNCTION_BLOCK\n'
+        'PROGRAM main\n'
+        'VAR lo : INT := 0; hi : INT := 0; END_VAR\n'
+        'IF lo = hi THEN lo := 1; END_IF;\n'
+        'END_PROGRAM\n')
+    warns, rc = run_checker([str(f)])
+    assert rc == 0
+    assert sorted(w.linenr for w in filter_warns(warns, 'PLCOPEN-CP8')) == [5, 6, 7]
+
+
 def test_cp25_ignores_output_assignment_formals():
     """The formal output name of an FB is not a variable of the caller."""
     warns, rc = check_program(

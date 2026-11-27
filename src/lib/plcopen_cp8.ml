@@ -4,15 +4,23 @@ open IECCheckerCore
 module S = Syntax
 module AU = IECCheckerCore.Ast_util
 
-let is_float = function
-  | S.ExprConstant (_, c) -> begin
-      match c with
-      | S.CReal _ -> true
-      | _ -> false
-    end
+let real_vars elem =
+  AU.get_var_decls elem
+  |> List.filter_map ~f:(fun d ->
+      match S.VarDecl.get_ty_spec d with
+      | Some (S.DTyDeclSingleElement (S.DTySpecElementary (S.REAL | S.LREAL), _)) ->
+        Some (S.VarDecl.get_var_name d)
+      | _ -> None)
+
+let is_float reals = function
+  | S.ExprConstant (_, S.CReal _) -> true
+  | S.ExprVariable (_, v) ->
+    List.is_empty (S.VarUse.get_path v)
+    && List.mem reals (S.VarUse.get_name v) ~equal:String.equal
   | _ -> false
 
 let check_elem elem =
+  let is_float = is_float (real_vars elem) in
   AU.get_pou_subexprs elem
   |> List.fold_left ~init:[]
     ~f:(fun acc expr -> begin
