@@ -100,6 +100,7 @@
 - PLCOPEN-CP20: new detector, a function block instance called more than once in one cycle. Calls in different branches of an `IF` or `CASE`, a call followed by `RETURN` and a single call inside a loop are not reported
 - UncalledInstance: new detector, a local instance of a standard function block or of a function block in the input whose inputs or outputs are used, but which is never called, so its outputs keep their initial values
 - CLI option `--version`: prints the version and exits
+- CI: a `v*` tag publishes a GitHub release with the static Linux binary, its SHA-256, the PDF documentation and a source archive
 
 ## 0.4.0 (2022-02-26)
 

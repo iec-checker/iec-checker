@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      v: ${{ steps.v.outputs.v }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag against dune-project and CHANGES.md
+        id: v
+        run: |
+          v=$(sed -n 's/^(version \(.*\))$/\1/p' dune-project)
+          [ "$GITHUB_REF_NAME" = "v$v" ] || { echo "::error::tag $GITHUB_REF_NAME, but dune-project has version $v"; exit 1; }
+          grep -q "^## $v\( \|$\)" CHANGES.md || { echo "::error::CHANGES.md has no '## $v' section"; exit 1; }
+          echo "v=$v" >> "$GITHUB_OUTPUT"
+
+  linux:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: '5.2.x'
+
+      - name: Build
+        run: |
+          opam install --deps-only -y .
+          opam exec -- dune build --profile release @install
+
+      - name: Check and hash the binary
+        env:
+          V: ${{ needs.version.outputs.v }}
+        run: |
+          b=iec_checker_Linux_x86_64
+          cp _build/install/default/bin/iec_checker "$b"
+          file "$b" | grep -q 'statically linked' || { file "$b"; echo "::error::$b is not static"; exit 1; }
+          [ "$(./"$b" --version)" = "iec_checker $V" ] || { ./"$b" --version; exit 1; }
+          sha256sum "$b" > "$b.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: iec_checker_Linux_x86_64*
+          if-no-files-found: error
+
+  pdf:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: iec-checker/iec-checker.github.io
+          path: site
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: yarn
+          cache-dependency-path: site/yarn.lock
+
+      - name: Generate the PDF documentation
+        working-directory: site
+        env:
+          V: ${{ needs.version.outputs.v }}
+        run: |
+          yarn install --frozen-lockfile
+          PUPPETEER_EXECUTABLE_PATH=$(command -v google-chrome) scripts/generate-pdf.sh "$V" "${GITHUB_SHA::7}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdf
+          path: site/iec-checker-docs.pdf
+          if-no-files-found: error
+
+  release:
+    needs: [version, linux, pdf]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create the release
+        env:
+          V: ${{ needs.version.outputs.v }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git archive --format=tar.gz --prefix="iec-checker-$V/" -o "dist/iec-checker-$V.tar.gz" "$GITHUB_SHA"
+          awk -v h="## $V" '/^## /{f = ($0 == h || index($0, h " ") == 1); next} f' CHANGES.md > notes.md
+          gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --title "iec-checker $V" --notes-file notes.md
