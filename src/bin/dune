@@ -14,3 +14,7 @@
    (:standard -warn-error -A)))
  (release
   (ocamlopt_flags :standard -ccopt -static)))
+
+(rule
+ (with-stdout-to version.ml
+  (echo "let v = \"%{version:iec_checker}\"\n")))

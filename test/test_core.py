@@ -1,11 +1,13 @@
 """Tests for internal errors."""
 import sys
 import os
+import re
+import subprocess
 import threading
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../src"))
-from python.core import run_checker, run_checker_full_out, check_program  # noqa
+from python.core import run_checker, run_checker_full_out, check_program, binary_default  # noqa
 from python.dump import DumpManager  # noqa
 
 
@@ -62,3 +64,11 @@ def test_stdin_reads_whole_input():
     assert rc == 1 and len(e) == 1 and (e[0].id, e[0].linenr) == ('LexingError', 3), warns
     with DumpManager('stdin.dump.json'):
         pass
+
+
+def test_version():
+    """`--version` prints the version from dune-project and exits."""
+    with open(os.path.join('..', 'dune-project')) as f:
+        version = re.search(r'\(version (\S+)\)', f.read()).group(1)
+    p = subprocess.run([binary_default, '--version'], capture_output=True, text=True)
+    assert (p.returncode, p.stdout) == (0, f'iec_checker {version}\n'), p

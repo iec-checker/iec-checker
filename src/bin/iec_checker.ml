@@ -506,6 +506,13 @@ let () =
       false
   in
 
+  let version =
+    Clap.flag
+      ~set_long: "version"
+      ~description: "Print the version and exit."
+      false
+  in
+
   let paths =
     Clap.list_string
       ~description:
@@ -515,6 +522,11 @@ let () =
   in
 
   Clap.close ();
+
+  if version then begin
+    Printf.printf "iec_checker %s\n" Version.v;
+    exit ReturnCode.ok
+  end;
 
   (* --generate-config: write defaults and exit *)
   if generate_config then begin
