@@ -5,9 +5,9 @@ synopsis: "Static analysis of IEC 61131-3 programs"
 maintainer: ["Georgiy Komarov <jubnzv@gmail.com>"]
 authors: ["Georgiy Komarov"]
 license: "LGPL-3.0-or-later"
-homepage: "https://github.com/jubnzv/iec-checker"
+homepage: "https://github.com/iec-checker/iec-checker"
 doc: "https://iec-checker.github.io/"
-bug-reports: "https://github.com/jubnzv/iec-checker/issues"
+bug-reports: "https://github.com/iec-checker/iec-checker/issues"
 depends: [
   "dune" {>= "2.0"}
   "ocaml" {>= "5.1"}
@@ -39,4 +39,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/jubnzv/iec-checker.git"
+dev-repo: "git+https://github.com/iec-checker/iec-checker.git"

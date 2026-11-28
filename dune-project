@@ -7,7 +7,7 @@
 (version 0.5.0)
 (authors "Georgiy Komarov")
 (license  LGPL-3.0-or-later)
-(source (github jubnzv/iec-checker))
+(source (github iec-checker/iec-checker))
 (documentation "https://iec-checker.github.io/")
 (maintainers "Georgiy Komarov <jubnzv@gmail.com>")
 

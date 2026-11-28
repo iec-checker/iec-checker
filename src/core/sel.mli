@@ -1,5 +1,5 @@
 (** Module to reconstruct IEC61131-3 source code from the SEL XML files.
-    See: https://github.com/jubnzv/iec-checker/issues/6 for the description of
+    See: https://github.com/iec-checker/iec-checker/issues/6 for the description of
     this format. *)
 
 val reconstruct_from_channel_opt : in_channel -> string option

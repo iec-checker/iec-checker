@@ -24,11 +24,11 @@ PLCOPEN-CP13: POUs shall not call themselves directly or indirectly
 - Structured Text, [PLCOpen XML](https://plcopen.org/technical-activities/xml-exchange), and [SEL XML](https://selinc.com/products/3530/) input formats
 - JSON output for [CI/CD integration](https://iec-checker.github.io/docs/ci-cd) and [Python tooling](https://iec-checker.github.io/docs/python)
 
-The ST dialect is compatible with the [matiec](https://github.com/sm1820/matiec) compiler. If `iec-checker` chokes on extensions from your PLC vendor, please [open an issue](https://github.com/jubnzv/iec-checker/issues/new).
+The ST dialect is compatible with the [matiec](https://github.com/sm1820/matiec) compiler. If `iec-checker` chokes on extensions from your PLC vendor, please [open an issue](https://github.com/iec-checker/iec-checker/issues/new).
 
 ## Installation
 
-Download a prebuilt binary for Linux or Windows x86_64 from [GitHub releases](https://github.com/jubnzv/iec-checker/releases).
+Download a prebuilt binary for Linux or Windows x86_64 from [GitHub releases](https://github.com/iec-checker/iec-checker/releases).
 
 ### Docker
 
