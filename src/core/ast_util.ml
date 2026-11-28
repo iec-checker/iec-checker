@@ -102,6 +102,24 @@ let get_top_stmts = function
   | S.IECConfiguration _ -> []
   | S.IECType _ -> []
 
+let std_fbs = [
+  "SR"; "RS"; "R_TRIG"; "F_TRIG";
+  "CTU"; "CTU_INT"; "CTU_DINT"; "CTU_LINT"; "CTU_UDINT"; "CTU_ULINT";
+  "CTD"; "CTD_INT"; "CTD_DINT"; "CTD_LINT"; "CTD_UDINT"; "CTD_ULINT";
+  "CTUD"; "CTUD_INT"; "CTUD_DINT"; "CTUD_LINT"; "CTUD_UDINT"; "CTUD_ULINT";
+  "TP"; "TP_TIME"; "TP_LTIME"; "TON"; "TON_TIME"; "TON_LTIME"; "TOF"; "TOF_TIME"; "TOF_LTIME";
+]
+
+let fb_types elems =
+  std_fbs @ List.filter_map elems ~f:(function
+      | S.IECFunctionBlock (_, fb) -> Some (S.FunctionBlock.get_name fb.id)
+      | _ -> None)
+
+let has_type_in types decl =
+  match S.VarDecl.get_ty_spec decl with
+  | Some (S.DTyDeclSingleElement (S.DTySpecSimple t, _)) -> List.mem types t ~equal:String.Caseless.equal
+  | _ -> false
+
 let get_stmts_num elem =
   let rec count stmts = List.fold stmts ~init:0 ~f:(fun acc s -> acc + count_stmt s)
   and count_stmt = function

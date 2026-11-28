@@ -14,6 +14,14 @@ val get_pou_stmts : S.iec_library_element -> S.statement list
 val get_top_stmts : S.iec_library_element -> S.statement list
 (** [get_top_stmts pou] Non-recursively get statements from a [pou]. *)
 
+val fb_types : S.iec_library_element list -> string list
+(** [fb_types elems] Names of the standard function blocks and of the function
+    blocks declared in [elems]. *)
+
+val has_type_in : string list -> S.VarDecl.t -> bool
+(** [has_type_in types decl] [decl] is of a named type listed in [types]
+    (case-insensitively). *)
+
 val get_stmts_num : S.iec_library_element -> int
 (** [get_stmts_num elem] Number of statements in [elem], nested ones included.
     Each [ELSIF] branch counts as one; conditions, call arguments and empty
