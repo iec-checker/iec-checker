@@ -187,6 +187,17 @@ def test_cp13():
         pass
 
 
+def test_cp20():
+    f = 'st/plcopen-cp20.st'
+    fdump = f'{f}.dump.json'
+    warns, rc = run_checker([f])
+    assert rc == 0
+    assert sorted((w.linenr, w.column) for w in filter_warns(warns, 'PLCOPEN-CP20')) == [
+        (25, 1), (29, 3), (33, 11), (54, 11)]
+    with DumpManager(fdump):
+        pass
+
+
 def test_cp25():
     f = 'st/plcopen-cp25.st'
     fdump = f'{f}.dump.json'

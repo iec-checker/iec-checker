@@ -97,6 +97,7 @@
 - Warnings about the name of a `TYPE`, `CLASS`, `INTERFACE` or `PROGRAM` (PLCOPEN-N4, N6, N8, N9, N10; CP9 for classes) and OutOfBounds warnings on declaration initializers are reported at the name; they were at `0:0`
 - PLCOPEN-CP9: the statement count counts each statement once, and each `ELSIF` branch; it also counted the conditions of `IF`/`ELSIF`/`WHILE`, call arguments and calls nested in expressions, and missed `FOR` and `CASE`. The PLCopen example `CHARCURVE` has 18 statements, as the guideline says; it was 27
 - OutOfBounds: the length of a string initializer counts a `$` escape (`$$`, `$N`, `$'`, `$20`, `$0041`) and a UTF-8 character as one character; `STRING[2] := ',$20'` was reported as 4 characters
+- PLCOPEN-CP20: new detector, a function block instance called more than once in one cycle. Calls in different branches of an `IF` or `CASE`, a call followed by `RETURN` and a single call inside a loop are not reported
 
 ## 0.4.0 (2022-02-26)
 
