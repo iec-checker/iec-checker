@@ -1,26 +1,6 @@
-## Unreleased
+## 0.5.0 (2026-11-28)
 
-- Support OCaml 5.1+ and Core 0.16+
-- Migrate the project from `Core_kernel` to `Core`
-- Driver: remove deprecated `Caml` module calls in the driver and lexer
-- Driver: replace *nix-specific `Sys` functions with portable equivalents
-- Driver: merge multiple input files via the command line
-- Driver: force newlines after raising warnings
-- Parser: fix errors after updating Menhir
-- Build: simplify installation; add a top-level `Makefile`
-- Build: build the project before running the test suite
-- CI: update GitHub Actions to the latest packages
-- CI: fix `dune not found` error when running `make test`
-- Deps: bump `pytest` version to support Python 3.10
-- Add `make doc` target and odoc package landing page (#24)
-- Integrate `codespell` to the CI and fix errors found (#29)
-- Uniform `Detector` API (#27)
-- CLI option `--list-checks` (#28)
-- Nuke `ZeroDiv` check
-- Improve warnings output format (#30)
-- Add `--no-color` CLI option (#30)
-- Add configuration file (#44)
-- lexer: Case-sensitive identifiers
+### New detectors
 - Add `PLCOpen-N1` (#15)
 - Add `PLCOpen-N2` (#34)
 - Add `PLCOpen-N4` (#35)
@@ -33,14 +13,16 @@
 - Add `PLCOpen-L13` (#55)
 - Add `PLCOpen-L22` (#56)
 - Add `PLCOpen-N10` (#40)
-- Parser/Lexer: show the problematic token and a source snippet for `ParserError`/`LexingError` (#58)
+- Add `PLCOpen-CP17` (#68, @cangkui)
+- Add `PLCOpen-CP20` (#49)
+- Add `UncalledInstance`
+
+### Bugfixes
+- Parser: fix errors after updating Menhir
 - Lexer: fix a bug where the `TRUE` boolean literal was silently lexed as `false`, corrupting CP2, CP8, CP25, N3 detectors
 - `UnusedVariable`: fix a false positive where variables accessed only via struct-member syntax were reported as unused
 - Parser: Allow whitespace only `fb_body`/`fc_body` (#62, @cangkui)
 - Parser: Allow empty statement such as `;` (#64, @cangkui)
-- Add Dockerfile (#69, @cangkui)
-- Parser: Preserve literal types; add bit string literals (#66, @cangkui)
-- Add `PLCOpen-N1` (#68, @cangkui)
 - Lexer: accept spaces, non-ASCII characters and the `$$ $L $N $P $R $T` escapes in string literals
 - Lexer: make control-flow keywords (`IF`, `THEN`, `CASE`, `FOR`, `RETURN`, ...) case-insensitive like all other keywords
 - Parser: accept enumerated values (`A`, `E#A`) and named constants as `CASE` labels, and enumerated values as variable, struct and array element initializers
@@ -58,7 +40,6 @@
 - Lexer: accept the `STRING#` literal prefix in any case
 - Parser: accept subrange specifications in variable declarations (`r : INT (0..10) := 5;`)
 - Lexer/Parser: lex `.` as a separate token instead of as a part of identifiers. Field access after a subscript (`a[i].f`, `m[i, j].f.g[k].h`), bit access (`w.%X0`, `w.5`) and whitespace or comments around `.` are accepted; field names that spell a keyword (`x.single`) stay identifiers. Malformed paths (`s..f`, `s.`), qualified names in declarations (`a.b : INT;`) and qualified formal parameter names (`f(s.x := 1)`) are rejected
-- Core: represent a symbolic variable as a root identifier and a selector path (`.field`, `[i, j]`, `.5`, `.%X5`) instead of one dotted name. `VarUse.get_name` is the root; subscripts are recorded in expressions too. The JSON dump (version `0.2`) has `path` in place of `array_indexes`
 - `PLCOPEN-CP17`: fix false positives for parameters that are read or written only through a field or an element (`inp.f`, `out[i].f := x`); report writes to a field of an input parameter
 - `PLCOPEN-CP26`: count writes to a field or an element of a `VAR_EXTERNAL` variable
 - `OutOfBounds`: check subscripts on reads (`x := a[9]`) and when a field access follows (`a[9].f`)
@@ -69,8 +50,6 @@
 - Parser: keep the `SINGLE`, `INTERVAL` and `PRIORITY` values of a `TASK` in the AST and the JSON dump; they were always `null`
 - Parser: reject a `CASE` arm without labels (`: y := 1;`); a missing `;` before a negative label (`y := a` then `-1: ...`) is a syntax error instead of a silent `y := a - 1`
 - `PLCOPEN-CP8`, `PLCOPEN-CP28`: report `<>` comparisons, which were never reported; report each comparison once instead of once per enclosing statement; find comparisons nested in other expressions and call arguments (`(r = 1.5) AND b`, `MOVE(t = T#1s)`)
-- Parser: accept `STRING(n)` and `WSTRING(n)` as CODESYS and TwinCAT write the string length (standard: `STRING[n]`); listed on the Standard Extensions page
-- Parser: accept several `VAR_GLOBAL` sections in a `CONFIGURATION` or `RESOURCE` (e.g. `VAR_GLOBAL CONSTANT` next to `VAR_GLOBAL`), as Beremiz generates them; listed on the Standard Extensions page
 - Parser: build an output assignment `fb(Q => v)` as `Q SENDTO v`; it was `v SENDTO v`, so the output parameter was lost. `PLCOPEN-CP25` no longer compares the output parameter with a caller variable of the same name
 - CLI: `-` reads the whole program from stdin; only its first line was read, so a multi-line program failed and the rest of the input was ignored. `--interactive` still reads one line
 - Parser: accept empty `THEN`, `ELSIF`, `ELSE` branches, `CASE` arms and loop bodies (3rd edition `stmt_list`); in the CFG an empty body passes control on (an empty `REPEAT` body crashed the CFG builder)
@@ -97,8 +76,34 @@
 - Warnings about the name of a `TYPE`, `CLASS`, `INTERFACE` or `PROGRAM` (PLCOPEN-N4, N6, N8, N9, N10; CP9 for classes) and OutOfBounds warnings on declaration initializers are reported at the name; they were at `0:0`
 - PLCOPEN-CP9: the statement count counts each statement once, and each `ELSIF` branch; it also counted the conditions of `IF`/`ELSIF`/`WHILE`, call arguments and calls nested in expressions, and missed `FOR` and `CASE`. The PLCopen example `CHARCURVE` has 18 statements, as the guideline says; it was 27
 - OutOfBounds: the length of a string initializer counts a `$` escape (`$$`, `$N`, `$'`, `$20`, `$0041`) and a UTF-8 character as one character; `STRING[2] := ',$20'` was reported as 4 characters
-- PLCOPEN-CP20: new detector, a function block instance called more than once in one cycle. Calls in different branches of an `IF` or `CASE`, a call followed by `RETURN` and a single call inside a loop are not reported
-- UncalledInstance: new detector, a local instance of a standard function block or of a function block in the input whose inputs or outputs are used, but which is never called, so its outputs keep their initial values
+
+### misc
+- Support OCaml 5.1+ and Core 0.16+
+- Migrate the project from `Core_kernel` to `Core`
+- Driver: remove deprecated `Caml` module calls in the driver and lexer
+- Driver: replace *nix-specific `Sys` functions with portable equivalents
+- Driver: merge multiple input files via the command line
+- Driver: force newlines after raising warnings
+- Build: simplify installation; add a top-level `Makefile`
+- Build: build the project before running the test suite
+- CI: update GitHub Actions to the latest packages
+- CI: fix `dune not found` error when running `make test`
+- Deps: bump `pytest` version to support Python 3.10
+- Add `make doc` target and odoc package landing page (#24)
+- Integrate `codespell` to the CI and fix errors found (#29)
+- Uniform `Detector` API (#27)
+- CLI option `--list-checks` (#28)
+- Nuke `ZeroDiv` check
+- Improve warnings output format (#30)
+- Add `--no-color` CLI option (#30)
+- Add configuration file (#44)
+- lexer: Case-sensitive identifiers
+- Parser/Lexer: show the problematic token and a source snippet for `ParserError`/`LexingError` (#58)
+- Add Dockerfile (#69, @cangkui)
+- Parser: Preserve literal types; add bit string literals (#66, @cangkui)
+- Core: represent a symbolic variable as a root identifier and a selector path (`.field`, `[i, j]`, `.5`, `.%X5`) instead of one dotted name. `VarUse.get_name` is the root; subscripts are recorded in expressions too. The JSON dump (version `0.2`) has `path` in place of `array_indexes`
+- Parser: accept `STRING(n)` and `WSTRING(n)` as CODESYS and TwinCAT write the string length (standard: `STRING[n]`); listed on the Standard Extensions page
+- Parser: accept several `VAR_GLOBAL` sections in a `CONFIGURATION` or `RESOURCE` (e.g. `VAR_GLOBAL CONSTANT` next to `VAR_GLOBAL`), as Beremiz generates them; listed on the Standard Extensions page
 - CLI option `--version`: prints the version and exits
 - CI: a `v*` tag publishes a GitHub release with the static Linux binary, its SHA-256, the PDF documentation and a source archive
 

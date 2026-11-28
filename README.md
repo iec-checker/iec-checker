@@ -24,15 +24,19 @@ PLCOPEN-CP13: POUs shall not call themselves directly or indirectly
 - Structured Text, [PLCOpen XML](https://plcopen.org/technical-activities/xml-exchange), and [SEL XML](https://selinc.com/products/3530/) input formats
 - JSON output for [CI/CD integration](https://iec-checker.github.io/docs/ci-cd) and [Python tooling](https://iec-checker.github.io/docs/python)
 
-The ST dialect is compatible with the [matiec](https://github.com/sm1820/matiec) compiler. If `iec-checker` chokes on extensions from your PLC vendor, please [open an issue](https://github.com/iec-checker/iec-checker/issues/new).
+The ST dialect is compatible with the [matiec](https://github.com/sm1820/matiec) compiler, plus some [extensions](https://iec-checker.github.io/docs/standard-extensions). If `iec-checker` chokes on extensions from your PLC vendor, please [open an issue](https://github.com/iec-checker/iec-checker/issues/new).
 
 ## Installation
 
-Download a prebuilt binary for Linux or Windows x86_64 from [GitHub releases](https://github.com/iec-checker/iec-checker/releases).
+Starting from 0.5, every release is built from source automatically by a [GitHub Actions workflow](https://github.com/iec-checker/iec-checker/actions/workflows/release.yml). On Linux, just download the static binary from [GitHub releases](https://github.com/iec-checker/iec-checker/releases) and run it.
+
+The tool builds on macOS and Windows too, but the maintainer has neither the machines nor the time to test it there: [build from source](#build-from-source) or use [Docker](#docker).
+
+For security-related projects, it is strongly recommended to audit the source code and [build the binary from source](#build-from-source) on a trusted machine.
 
 ### Docker
 
-Nightly builds are published to Docker Hub automatically by a weekly GitHub Actions workflow:
+Nightly builds are published to Docker Hub automatically by a weekly [GitHub Actions workflow](https://github.com/iec-checker/iec-checker/actions/workflows/docker-nightly.yml):
 
 ```bash
 docker pull jubnzv1/iec-checker:nightly
